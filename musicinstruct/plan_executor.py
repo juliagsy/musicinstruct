@@ -90,6 +90,12 @@ def _extract_json_objects(text: str) -> list[str]:
 
 
 def parse_plan_text(text: str) -> Plan:
+    """Parse a model response into a structured plan.
+
+    Extracts each balanced JSON object from the text and returns the last
+    object that passes plan validation. Models sometimes emit draft JSON
+    before the final answer; the last valid plan is treated as authoritative.
+    """
     stripped = text.strip()
     candidates: list[str] = []
     fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, flags=re.DOTALL | re.IGNORECASE)
