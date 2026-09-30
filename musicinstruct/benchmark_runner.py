@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .baselines import BASELINE_NAMES, run_baselines
+from .baselines import run_baselines
 from .dataset import load_jsonl, resolve_item_paths
 from .evaluation import filter_items, score_records, write_predictions
 

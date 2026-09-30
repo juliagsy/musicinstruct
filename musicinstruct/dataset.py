@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from pathlib import Path
 
@@ -70,9 +69,8 @@ def validate_dataset(path: str | Path) -> dict:
             errors.append(f"{item.item_id}: missing midi_in {resolved.midi_in}")
         if item.gold_mode == "unique" and not item.gold_midi:
             errors.append(f"{item.item_id}: unique gold requires gold_midi")
-        if item.gold_mode == "unique":
-            if not Path(str(resolved.gold_midi)).is_file():
-                errors.append(f"{item.item_id}: missing gold_midi {resolved.gold_midi}")
+        if item.gold_mode == "unique" and not Path(str(resolved.gold_midi)).is_file():
+            errors.append(f"{item.item_id}: missing gold_midi {resolved.gold_midi}")
         if not item.must_change:
             errors.append(f"{item.item_id}: must_change is empty")
         if not item.must_preserve:

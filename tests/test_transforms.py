@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pretty_midi
-
 from musicinstruct.midi import extract_notes, load_midi
 from musicinstruct.transforms import make_seed_midi, mute_tracks, transpose, velocity_scale
 

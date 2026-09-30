@@ -83,9 +83,7 @@ def note_in_mask(note: NoteEvent, mask: EditMask) -> bool:
         return False
     if mask.start_time is not None and note.start < mask.start_time - TIME_EPS:
         return False
-    if mask.end_time is not None and note.start >= mask.end_time + TIME_EPS:
-        return False
-    return True
+    return not (mask.end_time is not None and note.start >= mask.end_time + TIME_EPS)
 
 
 def partition_notes(notes: list[NoteEvent], mask: EditMask) -> tuple[list[NoteEvent], list[NoteEvent]]:

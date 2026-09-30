@@ -3,7 +3,7 @@ from pathlib import Path
 from musicinstruct.dataset import save_jsonl, validate_dataset
 from musicinstruct.evaluation import gold_predictions, score_records, write_predictions
 from musicinstruct.generate import generate_pilot_dataset
-from musicinstruct.schema import BenchmarkItem, Plan, Prediction
+from musicinstruct.schema import BenchmarkItem
 from musicinstruct.transforms import make_seed_midi, transpose
 
 

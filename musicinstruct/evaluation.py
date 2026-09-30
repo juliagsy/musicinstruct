@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from .dataset import load_jsonl, resolve_item_paths
 from .metrics import ItemScores, aggregate_scores, score_item
-from .schema import BenchmarkItem, Plan, Prediction
+from .schema import BenchmarkItem, Prediction
 
 SELF_TEST_EDIT_SUCCESS_MIN = 0.999
 SELF_TEST_PRESERVE_MIN = 1.0

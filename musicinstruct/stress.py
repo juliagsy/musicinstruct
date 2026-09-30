@@ -7,7 +7,12 @@ import shutil
 from pathlib import Path
 
 from .dataset import save_jsonl
-from .evaluation import SELF_TEST_EDIT_SUCCESS_MIN, gold_predictions, score_records, write_predictions
+from .evaluation import (
+    SELF_TEST_EDIT_SUCCESS_MIN,
+    gold_predictions,
+    score_records,
+    write_predictions,
+)
 from .midi import validate_midi
 from .schema import BenchmarkItem
 from .transforms import non_drum_tracks, tempo_scale, transpose

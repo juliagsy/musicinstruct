@@ -3,6 +3,7 @@ from pathlib import Path
 from musicinstruct.dataset import load_jsonl, resolve_item_paths
 from musicinstruct.evaluation import score_records, write_predictions
 from musicinstruct.generate import TARGET_ITEMS, generate_pilot_dataset
+from musicinstruct.llm_client import load_env_file, resolve_hf_token
 from musicinstruct.plan_executor import (
     StubPlanClient,
     build_plan_prompt,
@@ -12,7 +13,6 @@ from musicinstruct.plan_executor import (
     predict_plan_executor,
     run_plan_executor,
 )
-from musicinstruct.llm_client import load_env_file, resolve_hf_token
 from musicinstruct.plan_runner import run_plan_executor_suite
 from musicinstruct.schema import BenchmarkItem, Plan
 from musicinstruct.transforms import make_seed_midi
@@ -28,7 +28,7 @@ def test_load_env_file_sets_missing_vars(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".env").write_text('HF_TOKEN="from_dotenv"\n', encoding="utf-8")
     monkeypatch.delenv("HF_TOKEN", raising=False)
-    import musicinstruct.llm_client as llm_client
+    from musicinstruct import llm_client
 
     llm_client._ENV_LOADED = False
     load_env_file()

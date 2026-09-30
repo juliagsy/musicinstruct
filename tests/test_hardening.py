@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from musicinstruct.dataset import validate_dataset
 from musicinstruct.evaluation import load_predictions, score_records, write_predictions
 from musicinstruct.generate import OutputDirectoryExistsError, generate_pilot_dataset
-from musicinstruct.dataset import validate_dataset
 from musicinstruct.plan_executor import normalize_plan, validate_plan_for_source
 from musicinstruct.predicates import eval_predicate
 from musicinstruct.schema import BenchmarkItem, EditMask, Plan, Predicate, Prediction

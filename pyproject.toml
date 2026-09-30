@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.8"]
 stress = ["datasets>=2.14"]
 llm = ["transformers>=4.44", "torch", "accelerate", "huggingface_hub"]
 

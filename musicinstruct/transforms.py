@@ -99,7 +99,7 @@ def velocity_scale(
     target_tracks = tracks if tracks is not None else list(range(len(midi.instruments)))
     for track_idx in target_tracks:
         for note in midi.instruments[track_idx].notes:
-            note.velocity = max(1, min(127, int(round(note.velocity * factor))))
+            note.velocity = max(1, min(127, round(note.velocity * factor)))
     gold_path = _write(midi, Path(destination))
     return TransformResult(
         gold_path=gold_path,
