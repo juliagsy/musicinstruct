@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .benchmark_runner import run_baseline_suite
 from .dataset import load_jsonl, resolve_item_paths, validate_dataset
-from .evaluation import gold_predictions, score_records, write_predictions
+from .evaluation import gold_predictions, score_records, self_test_passed, write_predictions
 from .generate import generate_pilot_dataset
 from .llm_client import DEFAULT_LLAMA_MODEL, LlamaPlanClient
 from .midi import midi_summary
@@ -28,12 +28,17 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def cmd_score(args: argparse.Namespace) -> int:
-    results = score_records(
-        args.gold,
-        args.predictions,
-        joint_threshold=args.joint_threshold,
-        split=args.split,
-    )
+    try:
+        results = score_records(
+            args.gold,
+            args.predictions,
+            joint_threshold=args.joint_threshold,
+            split=args.split,
+            strict=args.strict,
+        )
+    except ValueError as exc:
+        _print_json({"error": str(exc)})
+        return 1
     if args.output:
         Path(args.output).write_text(json.dumps(results, indent=2), encoding="utf-8")
     _print_json(results)
@@ -41,7 +46,11 @@ def cmd_score(args: argparse.Namespace) -> int:
 
 
 def cmd_generate_pilot(args: argparse.Namespace) -> int:
-    items = generate_pilot_dataset(args.output_dir, target=args.target)
+    try:
+        items = generate_pilot_dataset(args.output_dir, target=args.target, force=args.force)
+    except FileExistsError as exc:
+        _print_json({"error": str(exc)})
+        return 1
     manifest = Path(args.output_dir) / "pilot.jsonl"
     report = validate_dataset(manifest)
     _print_json({"generated": len(items), "manifest": str(manifest), "validation": report})
@@ -54,9 +63,15 @@ def cmd_self_test(args: argparse.Namespace) -> int:
     items = [resolve_item_paths(item, root) for item in load_jsonl(manifest)]
     preds_path = root / "_gold_predictions.jsonl"
     write_predictions(preds_path, gold_predictions(items))
-    results = score_records(manifest, preds_path, joint_threshold=args.joint_threshold)
-    passed = results["overall"]["joint"] == 1.0 and results["overall"]["edit_success"] >= 0.99
-    _print_json({"self_test_passed": passed, "overall": results["overall"]})
+    results = score_records(manifest, preds_path, joint_threshold=args.joint_threshold, strict=True)
+    passed = self_test_passed(results["overall"])
+    _print_json(
+        {
+            "self_test_passed": passed,
+            "overall": results["overall"],
+            "prediction_coverage": results["prediction_coverage"],
+        }
+    )
     return 0 if passed else 1
 
 
@@ -83,7 +98,6 @@ def cmd_run_plan_executor(args: argparse.Namespace) -> int:
         device=args.device,
         max_new_tokens=args.max_new_tokens,
         temperature=args.temperature,
-        hf_token=args.hf_token,
     )
     summary = run_plan_executor_suite(
         args.dataset,
@@ -133,6 +147,11 @@ def build_parser() -> argparse.ArgumentParser:
     score.add_argument("--output", default=None)
     score.add_argument("--joint-threshold", type=float, default=0.9)
     score.add_argument("--split", default=None, choices=["train", "validation", "test"])
+    score.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail if any gold item lacks a prediction",
+    )
     score.set_defaults(func=cmd_score)
 
     plan_exec = sub.add_parser(
@@ -147,11 +166,6 @@ def build_parser() -> argparse.ArgumentParser:
     plan_exec.add_argument("--max-new-tokens", type=int, default=256)
     plan_exec.add_argument("--temperature", type=float, default=0.0)
     plan_exec.add_argument("--max-items", type=int, default=None, help="Limit items for quick runs")
-    plan_exec.add_argument(
-        "--hf-token",
-        default=None,
-        help="Hugging Face token for gated Llama weights (or set HF_TOKEN env var)",
-    )
     plan_exec.add_argument("--joint-threshold", type=float, default=0.9)
     plan_exec.set_defaults(func=cmd_run_plan_executor)
 
@@ -181,6 +195,11 @@ def build_parser() -> argparse.ArgumentParser:
     generate = sub.add_parser("generate-pilot", help="Generate synthetic pilot dataset")
     generate.add_argument("--output-dir", default="data/pilot")
     generate.add_argument("--target", type=int, default=336)
+    generate.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing output directory",
+    )
     generate.set_defaults(func=cmd_generate_pilot)
 
     self_test = sub.add_parser("self-test", help="Score gold MIDIs against themselves")
