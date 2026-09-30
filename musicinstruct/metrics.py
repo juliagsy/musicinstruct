@@ -133,16 +133,30 @@ def score_item(
             preserve_details=[],
         )
 
-    edit_results = evaluate_predicates(item.must_change, item.midi_in, hypothesis_path, item.edit_mask)
+    source_midi = load_midi(item.midi_in)
+    hyp_midi = load_midi(hypothesis_path)
+    source_notes = extract_notes(source_midi)
+    hyp_notes = extract_notes(hyp_midi)
+    edit_results = evaluate_predicates(
+        item.must_change,
+        item.midi_in,
+        hypothesis_path,
+        item.edit_mask,
+        source_midi=source_midi,
+        hyp_midi=hyp_midi,
+    )
     preserve_results = evaluate_predicates(
-        item.must_preserve, item.midi_in, hypothesis_path, item.edit_mask
+        item.must_preserve,
+        item.midi_in,
+        hypothesis_path,
+        item.edit_mask,
+        source_midi=source_midi,
+        hyp_midi=hyp_midi,
     )
     edit_success = _mean_score(edit_results)
     preserve = _mean_score(preserve_results)
     joint = 1.0 if edit_success >= joint_threshold and preserve >= joint_threshold else 0.0
 
-    source_notes = extract_notes(load_midi(item.midi_in))
-    hyp_notes = extract_notes(load_midi(hypothesis_path))
     over_edit = over_edit_rate(source_notes, hyp_notes, item.edit_mask)
 
     gold_f1: float | None = None

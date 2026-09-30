@@ -174,22 +174,18 @@ def _pitch_shift_delta(
     return median, f"median_delta={median:.2f}, coverage={coverage:.2f}"
 
 
-def eval_predicate(
+def _eval_predicate_loaded(
     name: str,
     params: dict,
-    source_path: str,
-    hypothesis_path: str,
+    source_midi: object,
+    hyp_midi: object,
     mask: EditMask,
 ) -> PredicateResult:
-    try:
-        source_notes = extract_notes(load_midi(source_path))
-        hyp_notes = extract_notes(load_midi(hypothesis_path))
-    except Exception as exc:  # noqa: BLE001 — invalid MIDI should score as failure
-        return _fail(name, f"midi load failed: {exc}")
-
+    source_notes = extract_notes(source_midi)
+    hyp_notes = extract_notes(hyp_midi)
     _, preserve_src = partition_notes(source_notes, mask)
     _, preserve_hyp = partition_notes(hyp_notes, mask)
-    n_instruments = len(load_midi(source_path).instruments)
+    n_instruments = len(source_midi.instruments)
 
     if name == "pitch_shifted_by":
         semitones, err = _require_int(params, "semitones", name)
@@ -227,7 +223,6 @@ def eval_predicate(
         if track_err:
             return track_err
         max_velocity = int(params.get("max_velocity", 1))
-        hyp_midi = load_midi(hypothesis_path)
         if len(hyp_midi.instruments) != n_instruments:
             return _fail(
                 name,
@@ -247,9 +242,7 @@ def eval_predicate(
             return err
         assert factor is not None
         tolerance = float(params.get("tolerance", 0.08))
-        src_midi = load_midi(source_path)
-        hyp_midi = load_midi(hypothesis_path)
-        src_dur = max(src_midi.get_end_time(), 1e-6)
+        src_dur = max(source_midi.get_end_time(), 1e-6)
         hyp_dur = max(hyp_midi.get_end_time(), 1e-6)
         ratio = src_dur / hyp_dur
         passed = abs(ratio - factor) <= tolerance
@@ -289,7 +282,6 @@ def eval_predicate(
         track_err = _validate_track_indices(name, [track], n_instruments)
         if track_err:
             return track_err
-        hyp_midi = load_midi(hypothesis_path)
         hyp_n = len(hyp_midi.instruments)
         if track >= hyp_n:
             return _fail(name, f"track {track} out of range 0..{hyp_n - 1} on hypothesis")
@@ -338,13 +330,38 @@ def eval_predicate(
     return PredicateResult(name, False, 0.0, f"unknown predicate: {name}")
 
 
+def eval_predicate(
+    name: str,
+    params: dict,
+    source_path: str,
+    hypothesis_path: str,
+    mask: EditMask,
+) -> PredicateResult:
+    try:
+        source_midi = load_midi(source_path)
+        hyp_midi = load_midi(hypothesis_path)
+    except Exception as exc:  # noqa: BLE001 — invalid MIDI should score as failure
+        return _fail(name, f"midi load failed: {exc}")
+    return _eval_predicate_loaded(name, params, source_midi, hyp_midi, mask)
+
+
 def evaluate_predicates(
     predicates: list[Predicate],
     source_path: str,
     hypothesis_path: str,
     mask: EditMask,
+    *,
+    source_midi: object | None = None,
+    hyp_midi: object | None = None,
 ) -> list[PredicateResult]:
+    try:
+        if source_midi is None:
+            source_midi = load_midi(source_path)
+        if hyp_midi is None:
+            hyp_midi = load_midi(hypothesis_path)
+    except Exception as exc:  # noqa: BLE001 — invalid MIDI should score as failure
+        return [_fail(p.name, f"midi load failed: {exc}") for p in predicates]
     return [
-        eval_predicate(p.name, p.params, source_path, hypothesis_path, mask)
+        _eval_predicate_loaded(p.name, p.params, source_midi, hyp_midi, mask)
         for p in predicates
     ]
