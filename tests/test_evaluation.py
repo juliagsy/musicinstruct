@@ -22,7 +22,10 @@ def test_end_to_end_self_score(tmp_path: Path) -> None:
     write_predictions(preds, gold_predictions(items))
     results = score_records(manifest, preds)
     assert results["overall"]["joint"] == 1.0
-    assert results["overall"]["edit_success"] >= 0.99
+    assert results["overall"]["edit_success"] >= 0.999
+    assert results["overall"]["preserve"] == 1.0
+    assert results["prediction_coverage"] == 1.0
+    assert results["missing_prediction_ids"] == []
 
 
 def test_missing_prediction_scores_zero(tmp_path: Path) -> None:
