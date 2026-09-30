@@ -75,28 +75,37 @@ def _validate_track_indices(
     return None
 
 
-def _median_pitch_delta(
+MIN_ONSET_ALIGNMENT_COVERAGE = 0.8
+
+
+def _pitch_shift_delta(
     source: list[NoteEvent],
     hypothesis: list[NoteEvent],
     tracks: list[int],
     mask: EditMask,
-) -> float:
-    deltas: list[float] = []
+    min_coverage: float = MIN_ONSET_ALIGNMENT_COVERAGE,
+) -> tuple[float | None, str]:
+    src_in_mask = [n for n in source if n.track in tracks and note_in_mask(n, mask)]
+    if not src_in_mask:
+        return None, "no source notes in mask"
+
     hyp_by_key: dict[tuple[int, float], int] = {}
     for note in hypothesis:
         if note.track in tracks and note_in_mask(note, mask):
             hyp_by_key[(note.track, round(note.start, 3))] = note.pitch
-    for note in source:
-        if note.track in tracks and note_in_mask(note, mask):
-            key = (note.track, round(note.start, 3))
-            if key in hyp_by_key:
-                deltas.append(hyp_by_key[key] - note.pitch)
-    if not deltas:
-        src_pitches = [n.pitch for n in source if n.track in tracks and note_in_mask(n, mask)]
-        hyp_pitches = [n.pitch for n in hypothesis if n.track in tracks and note_in_mask(n, mask)]
-        if len(src_pitches) == len(hyp_pitches) and src_pitches:
-            deltas = [h - s for s, h in zip(sorted(src_pitches), sorted(hyp_pitches), strict=True)]
-    return float(np.median(deltas)) if deltas else 0.0
+
+    deltas: list[float] = []
+    for note in src_in_mask:
+        key = (note.track, round(note.start, 3))
+        if key in hyp_by_key:
+            deltas.append(hyp_by_key[key] - note.pitch)
+
+    coverage = len(deltas) / len(src_in_mask)
+    if coverage < min_coverage:
+        return None, f"insufficient_onset_alignment coverage={coverage:.2f} need>={min_coverage}"
+
+    median = float(np.median(deltas))
+    return median, f"median_delta={median:.2f}, coverage={coverage:.2f}"
 
 
 def eval_predicate(
@@ -129,10 +138,19 @@ def eval_predicate(
             return track_err
         assert semitones is not None
         tolerance = float(params.get("tolerance", 0.5))
-        delta = _median_pitch_delta(source_notes, hyp_notes, tracks, mask)
+        min_coverage = float(params.get("min_coverage", MIN_ONSET_ALIGNMENT_COVERAGE))
+        delta, detail = _pitch_shift_delta(
+            source_notes,
+            hyp_notes,
+            tracks,
+            mask,
+            min_coverage=min_coverage,
+        )
+        if delta is None:
+            return PredicateResult(name, False, 0.0, detail)
         passed = abs(delta - semitones) <= tolerance
         score = max(0.0, 1.0 - abs(delta - semitones) / max(abs(semitones), 1))
-        return PredicateResult(name, passed, score, f"median_delta={delta:.2f}, expected={semitones}")
+        return PredicateResult(name, passed, score, f"{detail}, expected={semitones}")
 
     if name == "track_muted":
         tracks, err = _parse_tracks(params, "tracks", name)
@@ -143,26 +161,17 @@ def eval_predicate(
         if track_err:
             return track_err
         max_velocity = int(params.get("max_velocity", 1))
-        src_midi = load_midi(source_path)
         hyp_midi = load_midi(hypothesis_path)
+        if len(hyp_midi.instruments) != n_instruments:
+            return _fail(
+                name,
+                f"instrument count mismatch src={n_instruments} hyp={len(hyp_midi.instruments)}",
+            )
         failed: list[str] = []
         for track_idx in tracks:
-            src_inst = src_midi.instruments[track_idx]
-            identity = (int(src_inst.program), bool(src_inst.is_drum), src_inst.name)
-            hyp_inst = next(
-                (
-                    inst
-                    for inst in hyp_midi.instruments
-                    if (int(inst.program), bool(inst.is_drum), inst.name) == identity
-                ),
-                None,
-            )
-            if hyp_inst is None:
-                failed.append(f"missing:{identity}")
-                continue
-            peak = max((note.velocity for note in hyp_inst.notes), default=0)
+            peak = max((note.velocity for note in hyp_midi.instruments[track_idx].notes), default=0)
             if peak > max_velocity:
-                failed.append(f"loud:{identity}:peak={peak}")
+                failed.append(f"loud:track={track_idx}:peak={peak}")
         passed = len(failed) == 0
         return PredicateResult(name, passed, 1.0 if passed else 0.0, f"failures={failed}")
 
