@@ -82,7 +82,10 @@ def discover_midi_files(
             test_set_only=midicaps_test_set_only,
         )
         found.extend(caps)
-        source = "midicaps+lakh" if midi_dir else "midicaps+lakh"
+        if midi_dir:
+            source = "midi_dir+midicaps+lakh"
+        else:
+            source = "midicaps+lakh"
 
     # Stable dedupe while preserving order
     seen: set[str] = set()
