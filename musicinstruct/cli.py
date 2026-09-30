@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 from .benchmark_runner import run_baseline_suite
@@ -61,9 +62,15 @@ def cmd_self_test(args: argparse.Namespace) -> int:
     manifest = Path(args.dataset)
     root = manifest.parent
     items = [resolve_item_paths(item, root) for item in load_jsonl(manifest)]
-    preds_path = root / "_gold_predictions.jsonl"
-    write_predictions(preds_path, gold_predictions(items))
-    results = score_records(manifest, preds_path, joint_threshold=args.joint_threshold, strict=True)
+    with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as handle:
+        preds_path = Path(handle.name)
+    try:
+        write_predictions(preds_path, gold_predictions(items))
+        results = score_records(
+            manifest, preds_path, joint_threshold=args.joint_threshold, strict=True
+        )
+    finally:
+        preds_path.unlink(missing_ok=True)
     passed = self_test_passed(results["overall"])
     _print_json(
         {

@@ -122,6 +122,19 @@ def test_validate_plan_rejects_out_of_range_track(tmp_path: Path) -> None:
         validate_plan_for_source(plan, source)
 
 
+def test_self_test_does_not_write_dataset_sidecar(tmp_path: Path) -> None:
+    from argparse import Namespace
+
+    from musicinstruct.cli import cmd_self_test
+
+    out = tmp_path / "pilot"
+    generate_pilot_dataset(out, target=20)
+    manifest = out / "pilot.jsonl"
+    sidecar = out / "_gold_predictions.jsonl"
+    assert cmd_self_test(Namespace(dataset=str(manifest), joint_threshold=0.9)) == 0
+    assert not sidecar.exists()
+
+
 def test_validate_dataset_rejects_unknown_predicate(tmp_path: Path) -> None:
     source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
     item = BenchmarkItem(
