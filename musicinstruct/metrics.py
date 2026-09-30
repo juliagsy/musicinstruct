@@ -93,6 +93,20 @@ def score_item(
             preserve_details=[],
         )
 
+    if not item.must_change or not item.must_preserve:
+        return ItemScores(
+            item_id=item.item_id,
+            validity=validity,
+            edit_success=0.0,
+            preserve=0.0,
+            joint=0.0,
+            over_edit=1.0,
+            gold_note_f1=None,
+            plan_match=plan_exact_match(item.plan, predicted_plan),
+            edit_details=[],
+            preserve_details=[],
+        )
+
     edit_results = evaluate_predicates(item.must_change, item.midi_in, hypothesis_path, item.edit_mask)
     preserve_results = evaluate_predicates(
         item.must_preserve, item.midi_in, hypothesis_path, item.edit_mask
