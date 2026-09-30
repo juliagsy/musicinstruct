@@ -47,6 +47,32 @@ def _details(results: list[PredicateResult]) -> list[dict]:
     return [{"name": r.name, "passed": r.passed, "score": r.score, "detail": r.detail} for r in results]
 
 
+PLAN_PARAM_FLOAT_TOLERANCE = 1e-6
+
+
+def _plan_param_values_match(gold_value: object, predicted_value: object) -> bool:
+    if isinstance(gold_value, float) or isinstance(predicted_value, float):
+        try:
+            return abs(float(gold_value) - float(predicted_value)) <= PLAN_PARAM_FLOAT_TOLERANCE
+        except (TypeError, ValueError):
+            return False
+    if isinstance(gold_value, list) and isinstance(predicted_value, list):
+        if len(gold_value) != len(predicted_value):
+            return False
+        return all(
+            _plan_param_values_match(g, p) for g, p in zip(gold_value, predicted_value, strict=True)
+        )
+    return gold_value == predicted_value
+
+
+def plan_params_match(gold_params: dict, predicted_params: dict) -> bool:
+    if set(gold_params) != set(predicted_params):
+        return False
+    return all(
+        _plan_param_values_match(gold_params[key], predicted_params[key]) for key in gold_params
+    )
+
+
 def plan_exact_match(gold: Plan | None, predicted: Plan | None) -> float | None:
     if gold is None:
         return None
@@ -54,7 +80,7 @@ def plan_exact_match(gold: Plan | None, predicted: Plan | None) -> float | None:
         return 0.0
     if gold.op != predicted.op:
         return 0.0
-    return 1.0 if gold.params == predicted.params else 0.0
+    return 1.0 if plan_params_match(gold.params, predicted.params) else 0.0
 
 
 def score_item(

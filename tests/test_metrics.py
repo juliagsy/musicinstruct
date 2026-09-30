@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from musicinstruct.metrics import score_item
+from musicinstruct.metrics import plan_exact_match, score_item
 from musicinstruct.schema import BenchmarkItem, Plan
 from musicinstruct.transforms import make_seed_midi, transpose
 
@@ -44,6 +44,12 @@ def test_empty_must_change_scores_zero(tmp_path: Path) -> None:
     scores = score_item(item, str(gold), item.plan)
     assert scores.edit_success == 0.0
     assert scores.joint == 0.0
+
+
+def test_plan_match_allows_float_rounding() -> None:
+    gold = Plan(op="tempo_scale", params={"factor": 1.25})
+    predicted = Plan(op="tempo_scale", params={"factor": 1.2500001})
+    assert plan_exact_match(gold, predicted) == 1.0
 
 
 def test_wrong_plan_scores_zero(tmp_path: Path) -> None:
