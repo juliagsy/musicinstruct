@@ -4,9 +4,10 @@ import pytest
 
 from musicinstruct.evaluation import load_predictions, score_records, write_predictions
 from musicinstruct.generate import OutputDirectoryExistsError, generate_pilot_dataset
+from musicinstruct.dataset import validate_dataset
 from musicinstruct.plan_executor import normalize_plan, validate_plan_for_source
 from musicinstruct.predicates import eval_predicate
-from musicinstruct.schema import BenchmarkItem, EditMask, Plan, Prediction
+from musicinstruct.schema import BenchmarkItem, EditMask, Plan, Predicate, Prediction
 from musicinstruct.transforms import make_seed_midi
 
 
@@ -119,6 +120,27 @@ def test_validate_plan_rejects_out_of_range_track(tmp_path: Path) -> None:
     plan = Plan(op="mute_tracks", params={"tracks": [99]})
     with pytest.raises(ValueError, match="out of range"):
         validate_plan_for_source(plan, source)
+
+
+def test_validate_dataset_rejects_unknown_predicate(tmp_path: Path) -> None:
+    source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
+    item = BenchmarkItem(
+        item_id="x1",
+        composition_id="seed_00",
+        gold_mode="unique",
+        op_family="transpose",
+        instruction="Transpose up 1 semitone.",
+        midi_in=str(source),
+        gold_midi=str(source),
+        must_change=[Predicate(name="not_a_real_predicate", params={})],
+        must_preserve=[Predicate(name="notes_unchanged_outside_mask", params={})],
+        split="test",
+    )
+    manifest = tmp_path / "gold.jsonl"
+    manifest.write_text(item.model_dump_json() + "\n", encoding="utf-8")
+    report = validate_dataset(manifest)
+    assert not report["valid"]
+    assert any("unknown predicate" in err for err in report["errors"])
 
 
 def test_edit_mask_rejects_inverted_time_range() -> None:

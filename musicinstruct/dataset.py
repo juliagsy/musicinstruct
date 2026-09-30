@@ -8,6 +8,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from .predicates import KNOWN_PREDICATES
 from .schema import BenchmarkItem
 
 
@@ -75,6 +76,9 @@ def validate_dataset(path: str | Path) -> dict:
             errors.append(f"{item.item_id}: must_change is empty")
         if not item.must_preserve:
             errors.append(f"{item.item_id}: must_preserve is empty")
+        for predicate in item.must_change + item.must_preserve:
+            if predicate.name not in KNOWN_PREDICATES:
+                errors.append(f"{item.item_id}: unknown predicate {predicate.name!r}")
 
     for composition_id, splits in composition_splits.items():
         if len(splits) > 1:

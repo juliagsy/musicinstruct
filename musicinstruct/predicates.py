@@ -18,6 +18,21 @@ from .midi import (
 )
 from .schema import EditMask, Predicate
 
+KNOWN_PREDICATES = frozenset(
+    {
+        "pitch_shifted_by",
+        "track_muted",
+        "tempo_scaled_by",
+        "velocity_scaled_by",
+        "program_is",
+        "notes_unchanged_outside_mask",
+        "pitch_histogram_unchanged_outside_mask",
+        "ioi_unchanged_outside_mask",
+        "track_set_unchanged",
+        "pitches_unchanged",
+    }
+)
+
 
 @dataclass
 class PredicateResult:
