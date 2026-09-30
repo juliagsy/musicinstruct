@@ -39,7 +39,7 @@ class ItemScores:
 
 def _mean_score(results: list[PredicateResult]) -> float:
     if not results:
-        return 1.0
+        return 0.0
     return sum(r.score for r in results) / len(results)
 
 
