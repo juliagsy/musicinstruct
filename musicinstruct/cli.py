@@ -201,7 +201,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     generate = sub.add_parser("generate-pilot", help="Generate synthetic pilot dataset")
     generate.add_argument("--output-dir", default="data/pilot")
-    generate.add_argument("--target", type=int, default=336)
+    generate.add_argument("--target", type=int, default=300)
     generate.add_argument(
         "--force",
         action="store_true",

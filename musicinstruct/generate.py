@@ -1,4 +1,4 @@
-"""Synthetic pilot dataset generation (~300 unique-gold items)."""
+"""Synthetic pilot dataset generation (default 300 unique-gold items)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .transforms import (
 )
 
 SEED_COUNT = 12
-TARGET_ITEMS = 336
+TARGET_ITEMS = 300
 
 TRANSPOSE_SEMITONES = [-7, -5, -3, -2, 2, 3, 5, 7]
 VELOCITY_FACTORS = [0.5, 0.75, 1.25]
