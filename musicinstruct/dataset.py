@@ -8,7 +8,8 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from .predicates import KNOWN_PREDICATES
+from .midi import load_midi
+from .predicates import predicate_track_indices, validate_predicate_params
 from .schema import BenchmarkItem
 
 
@@ -77,8 +78,25 @@ def validate_dataset(path: str | Path) -> dict:
         if not item.must_preserve:
             errors.append(f"{item.item_id}: must_preserve is empty")
         for predicate in item.must_change + item.must_preserve:
-            if predicate.name not in KNOWN_PREDICATES:
-                errors.append(f"{item.item_id}: unknown predicate {predicate.name!r}")
+            param_error = validate_predicate_params(predicate.name, predicate.params)
+            if param_error:
+                errors.append(f"{item.item_id}: {param_error}")
+
+        if Path(resolved.midi_in).is_file():
+            n_tracks = len(load_midi(resolved.midi_in).instruments)
+            if item.edit_mask.tracks is not None:
+                for track_idx in item.edit_mask.tracks:
+                    if track_idx < 0 or track_idx >= n_tracks:
+                        errors.append(
+                            f"{item.item_id}: edit_mask track {track_idx} out of range 0..{n_tracks - 1}"
+                        )
+            for predicate in item.must_change + item.must_preserve:
+                for track_idx in predicate_track_indices(predicate.name, predicate.params):
+                    if track_idx < 0 or track_idx >= n_tracks:
+                        errors.append(
+                            f"{item.item_id}: predicate {predicate.name!r} track {track_idx} "
+                            f"out of range 0..{n_tracks - 1}"
+                        )
 
     for composition_id, splits in composition_splits.items():
         if len(splits) > 1:

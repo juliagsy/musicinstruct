@@ -135,6 +135,49 @@ def test_self_test_does_not_write_dataset_sidecar(tmp_path: Path) -> None:
     assert not sidecar.exists()
 
 
+def test_validate_dataset_rejects_bad_predicate_params(tmp_path: Path) -> None:
+    source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
+    item = BenchmarkItem(
+        item_id="x1",
+        composition_id="seed_00",
+        gold_mode="unique",
+        op_family="transpose",
+        instruction="Transpose up 1 semitone.",
+        midi_in=str(source),
+        gold_midi=str(source),
+        must_change=[Predicate(name="pitch_shifted_by", params={"tracks": [0]})],
+        must_preserve=[Predicate(name="notes_unchanged_outside_mask", params={})],
+        split="test",
+    )
+    manifest = tmp_path / "gold.jsonl"
+    manifest.write_text(item.model_dump_json() + "\n", encoding="utf-8")
+    report = validate_dataset(manifest)
+    assert not report["valid"]
+    assert any("missing required param" in err for err in report["errors"])
+
+
+def test_validate_dataset_rejects_out_of_range_edit_mask_track(tmp_path: Path) -> None:
+    source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
+    item = BenchmarkItem(
+        item_id="x1",
+        composition_id="seed_00",
+        gold_mode="unique",
+        op_family="transpose",
+        instruction="Transpose up 1 semitone.",
+        midi_in=str(source),
+        gold_midi=str(source),
+        must_change=[Predicate(name="pitch_shifted_by", params={"semitones": 2, "tracks": [0]})],
+        must_preserve=[Predicate(name="notes_unchanged_outside_mask", params={})],
+        edit_mask=EditMask(tracks=[99]),
+        split="test",
+    )
+    manifest = tmp_path / "gold.jsonl"
+    manifest.write_text(item.model_dump_json() + "\n", encoding="utf-8")
+    report = validate_dataset(manifest)
+    assert not report["valid"]
+    assert any("edit_mask track" in err for err in report["errors"])
+
+
 def test_validate_dataset_rejects_unknown_predicate(tmp_path: Path) -> None:
     source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
     item = BenchmarkItem(

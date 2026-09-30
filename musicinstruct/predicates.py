@@ -33,6 +33,57 @@ KNOWN_PREDICATES = frozenset(
     }
 )
 
+PREDICATE_REQUIRED_PARAMS: dict[str, tuple[str, ...]] = {
+    "pitch_shifted_by": ("semitones", "tracks"),
+    "track_muted": ("tracks",),
+    "tempo_scaled_by": ("factor",),
+    "velocity_scaled_by": ("factor", "tracks"),
+    "program_is": ("track", "program"),
+}
+
+
+def validate_predicate_params(name: str, params: dict) -> str | None:
+    if name not in KNOWN_PREDICATES:
+        return f"unknown predicate {name!r}"
+    for key in PREDICATE_REQUIRED_PARAMS.get(name, ()):
+        if key not in params:
+            return f"predicate {name!r} missing required param {key!r}"
+    if name in {"pitch_shifted_by", "program_is"}:
+        try:
+            int(params["semitones" if name == "pitch_shifted_by" else "track"])
+        except (KeyError, TypeError, ValueError):
+            return f"predicate {name!r} has invalid int param"
+    if name == "program_is":
+        try:
+            program = int(params["program"])
+        except (TypeError, ValueError):
+            return f"predicate {name!r} has invalid program"
+        if not 0 <= program <= 127:
+            return f"predicate {name!r} program must be 0..127, got {program}"
+    if name in {"pitch_shifted_by", "track_muted", "velocity_scaled_by"}:
+        tracks = params.get("tracks")
+        if not isinstance(tracks, list) or not tracks:
+            return f"predicate {name!r} tracks must be a non-empty list"
+        for value in tracks:
+            try:
+                int(value)
+            except (TypeError, ValueError):
+                return f"predicate {name!r} has invalid track index {value!r}"
+    if name in {"tempo_scaled_by", "velocity_scaled_by"}:
+        try:
+            float(params["factor"])
+        except (TypeError, ValueError):
+            return f"predicate {name!r} has invalid factor"
+    return None
+
+
+def predicate_track_indices(name: str, params: dict) -> list[int]:
+    if name in {"pitch_shifted_by", "track_muted", "velocity_scaled_by"}:
+        return [int(value) for value in params["tracks"]]
+    if name == "program_is":
+        return [int(params["track"])]
+    return []
+
 
 @dataclass
 class PredicateResult:
