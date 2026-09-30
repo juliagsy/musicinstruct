@@ -239,6 +239,9 @@ def eval_predicate(
         if track_err:
             return track_err
         hyp_midi = load_midi(hypothesis_path)
+        hyp_n = len(hyp_midi.instruments)
+        if track >= hyp_n:
+            return _fail(name, f"track {track} out of range 0..{hyp_n - 1} on hypothesis")
         actual = hyp_midi.instruments[track].program
         passed = actual == program
         return PredicateResult(name, passed, 1.0 if passed else 0.0, f"program={actual}, expected={program}")

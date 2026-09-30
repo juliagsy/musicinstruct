@@ -60,6 +60,23 @@ def test_track_muted_checks_track_index_not_identity(tmp_path: Path) -> None:
     assert "track=0" in preds[0].detail
 
 
+def test_program_is_fails_on_short_hypothesis(tmp_path: Path) -> None:
+    source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
+    short = tmp_path / "short.mid"
+    src = load_midi(source)
+    short_midi = pretty_midi.PrettyMIDI()
+    short_midi.instruments.append(src.instruments[0])
+    short_midi.write(str(short))
+    preds = evaluate_predicates(
+        [Predicate(name="program_is", params={"track": 1, "program": 25})],
+        str(source),
+        str(short),
+        EditMask(),
+    )
+    assert not preds[0].passed
+    assert "out of range" in preds[0].detail
+
+
 def test_pitch_shifted_fails_on_permuted_pitches(tmp_path: Path) -> None:
     source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
     permuted = tmp_path / "permuted.mid"
