@@ -1,0 +1,51 @@
+from pathlib import Path
+
+from musicinstruct.dataset import save_jsonl, validate_dataset
+from musicinstruct.evaluation import gold_predictions, score_records, write_predictions
+from musicinstruct.generate import generate_pilot_dataset
+from musicinstruct.schema import BenchmarkItem, Plan, Prediction
+from musicinstruct.transforms import make_seed_midi, transpose
+
+
+def test_end_to_end_self_score(tmp_path: Path) -> None:
+    out = tmp_path / "pilot"
+    generate_pilot_dataset(out, target=300)
+    manifest = out / "pilot.jsonl"
+    report = validate_dataset(manifest)
+    assert report["valid"]
+    assert report["count"] == 300
+
+    preds = out / "preds.jsonl"
+    from musicinstruct.dataset import load_jsonl, resolve_item_paths
+
+    items = [resolve_item_paths(i, out) for i in load_jsonl(manifest)]
+    write_predictions(preds, gold_predictions(items))
+    results = score_records(manifest, preds)
+    assert results["overall"]["joint"] == 1.0
+    assert results["overall"]["edit_success"] >= 0.99
+
+
+def test_missing_prediction_scores_zero(tmp_path: Path) -> None:
+    source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
+    gold = tmp_path / "gold.mid"
+    result = transpose(source, gold, semitones=1)
+    item = BenchmarkItem(
+        item_id="x1",
+        composition_id="seed_00",
+        gold_mode="unique",
+        op_family="transpose",
+        instruction="Transpose up 1 semitone.",
+        midi_in=str(source),
+        gold_midi=str(gold),
+        plan=result.plan,
+        must_change=result.must_change,
+        must_preserve=result.must_preserve,
+        edit_mask=result.edit_mask,
+        split="test",
+    )
+    manifest = tmp_path / "gold.jsonl"
+    save_jsonl(manifest, [item])
+    empty = tmp_path / "empty.jsonl"
+    empty.write_text("", encoding="utf-8")
+    results = score_records(manifest, empty)
+    assert results["overall"]["joint"] == 0.0
