@@ -121,6 +121,11 @@ def test_validate_plan_rejects_out_of_range_track(tmp_path: Path) -> None:
         validate_plan_for_source(plan, source)
 
 
+def test_edit_mask_rejects_inverted_time_range() -> None:
+    with pytest.raises(ValueError, match="end_time must be >= start_time"):
+        EditMask(start_time=4.0, end_time=1.0)
+
+
 def test_normalize_velocity_defaults_to_all_tracks(tmp_path: Path) -> None:
     source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
     item = BenchmarkItem(

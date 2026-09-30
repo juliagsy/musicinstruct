@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 GoldMode = Literal["unique", "constraint"]
 InstructionType = Literal["specific", "descriptive", "stylistic"]
@@ -19,6 +19,16 @@ class EditMask(BaseModel):
     start_time: float | None = Field(default=None, ge=0)
     end_time: float | None = Field(default=None, ge=0)
     include_drums: bool = False
+
+    @model_validator(mode="after")
+    def _valid_time_range(self) -> EditMask:
+        if (
+            self.start_time is not None
+            and self.end_time is not None
+            and self.end_time < self.start_time
+        ):
+            raise ValueError("end_time must be >= start_time")
+        return self
 
 
 class Predicate(BaseModel):
