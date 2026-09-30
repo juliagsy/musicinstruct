@@ -1,0 +1,24 @@
+\section{Metrics}
+
+Let $P_c$ and $P_p$ be the must-change and must-preserve predicate sets. Each predicate returns a score in $[0,1]$.
+
+\begin{align}
+\text{EditSuccess} &= \frac{1}{|P_c|}\sum_{p \in P_c} \text{score}(p; x, \hat{x}) \\
+\text{Preserve} &= \frac{1}{|P_p|}\sum_{p \in P_p} \text{score}(p; x, \hat{x}) \\
+\text{Joint} &= \mathbb{1}[\text{EditSuccess} \ge \tau \land \text{Preserve} \ge \tau]
+\end{align}
+
+with default $\tau = 0.9$.
+
+\paragraph{Additional reports.}
+\begin{itemize}[leftmargin=*]
+\item \textbf{Validity}: binary MIDI parse check.
+\item \textbf{OverEdit}: symmetric difference rate on notes outside edit mask $m$.
+\item \textbf{Gold note-F1}: for unique gold, F1 between $\hat{x}$ and $x^\*$ inside $m$.
+\item \textbf{Plan match}: exact equality on $(\text{op}, \theta)$ for MIDI-Reason.
+\end{itemize}
+
+\paragraph{Predicate examples.}
+Pitch shift checks median pitch delta on masked tracks; track mute requires zero remaining notes; tempo scale compares estimated BPM ratio; preservation uses exact note-set equality outside the mask, pitch histogram JS divergence, and track-set identity. Tempo edits use a global \texttt{pitches\_unchanged} predicate because timing changes affect all note onsets.
+
+Human listening tests may calibrate descriptive items later; they are not headline metrics in v0.1.

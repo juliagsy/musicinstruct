@@ -1,0 +1,16 @@
+\section{Related work}
+
+\paragraph{In-the-wild symbolic reasoning.}
+WildScore~\cite{mundada2025wildscore} sources 807 Reddit music-theory questions with score images, reporting $\approx$68\% accuracy for strong multimodal models. CSyMR-Bench~\cite{wang2026csymr} filters WildScore to 126 compositional multiple-choice items and shows music21-augmented agents gain 5--7 points. These benchmarks measure \emph{analysis}, not \emph{transformation}.
+
+\paragraph{Text-encoded symbolic understanding.}
+ABC-Eval~\cite{zhao2025abceval} and LilyBench evaluate LLMs on ABC or LilyPond understanding and generation. Error detection is the closest task to editing, but models select errors rather than apply fixes. ChatMusician's MusicTheoryBench~\cite{yuan2024chatmusician} remains MCQ-based.
+
+\paragraph{Instruction editing and preservation.}
+Not that Groove~\cite{groove2025} pairs drum grooves with instructions and necessary unit tests ($\approx$68\% pass rate for GPT-4.1). MuseCPBench~\cite{vishe2025musecpbench} unifies MCP evaluation across harmony, rhythm, form, and motifs, primarily on audio outputs. BeatEdit~\cite{gu2026beatedit} shows explicit MIDI editing beats autoregressive regeneration when gold diffs exist, but does not use natural language.
+
+\paragraph{Audio instruction following.}
+CMI-Bench~\cite{ma2025cmibench} reframes MIR tasks as instructions over audio. InstructME~\cite{lv2024instructme} edits mixed audio with latent diffusion. These systems inform metric design but do not evaluate MIDI-native dual axes.
+
+\paragraph{Positioning.}
+MIDI-Instruct is the first open benchmark combining (i)~multi-track MIDI input and output, (ii)~natural-language instructions, (iii)~programmatic edit and preserve predicates, and (iv)~a separate plan track for reasoning evaluation.

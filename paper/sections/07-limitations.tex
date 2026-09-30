@@ -1,0 +1,9 @@
+\section{Limitations}
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Synthetic seeds.} v0.1 items are programmatic, not drawn from professional arrangements; absolute scores may not transfer to in-the-wild MIDI complexity.
+\item \textbf{Unique gold only.} Descriptive instructions with many valid outputs are deferred; current metrics may over-penalize creative but valid edits once constraint gold arrives.
+\item \textbf{Operator coverage.} Five invertible families do not cover harmonization, re-orchestration, or bar-level rewriting; difficulty is intentionally controlled for grader validation.
+\item \textbf{No bundled models.} This release is benchmark infrastructure; comparative LLM numbers require a separate evaluation pass.
+\item \textbf{Tempo estimation.} BPM ratio checks depend on pretty\_midi tempo estimation; extreme rubato seeds may add noise.
+\end{itemize}

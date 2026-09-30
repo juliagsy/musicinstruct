@@ -1,0 +1,16 @@
+\section{Experimental setup}
+
+\paragraph{Reference baselines.}
+We ship four programmatic baselines on the test split (\texttt{run-baselines}): \textbf{oracle} (gold MIDI), \textbf{copy\_source} (unchanged input), \textbf{wrong\_transform} (incorrect op parameters), and \textbf{no\_output} (missing prediction). On the pilot test set ($n{=}20$): oracle achieves joint $=1.0$; copy-source edit-success $\approx 0.15$ with joint $=0$; wrong-transform and no-output both joint $=0$. Future work adds zero-shot LLMs and symbolic editing models without instruction conditioning.
+
+\paragraph{Prediction format.}
+Models write one MIDI file per item. JSONL predictions reference \texttt{midi\_path} relative to the predictions file and optional \texttt{plan}.
+
+\paragraph{Reporting.}
+Report mean \edit{}, \preserve{}, joint pass rate, over-edit, and gold note-F1 overall and by \texttt{op\_family}. Report plan match separately as MIDI-Reason. Include validity to catch format failures.
+
+\paragraph{Grader validation.}
+Before publishing model numbers, run \texttt{self-test} on the released manifest. Any joint $< 1$ indicates predicate or transform bugs, not model failure. \texttt{stress-test} applies transpose and tempo transforms to external MIDIs (local directories or MidiCaps/Lakh paths) and self-scores gold vs.\ gold to catch parser edge cases on real files.
+
+\paragraph{Future extensions.}
+Constraint-gold descriptive items; licensed seed corpora; multi-step compositional instructions; tool-augmented agents (music21); harness-based self-refine loops---each reuses the item schema with additional runners.

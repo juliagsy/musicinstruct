@@ -1,0 +1,22 @@
+\section{Introduction}
+
+Professional music production workflows treat MIDI as an editable artifact: notes, velocities, instruments, and tempo are parameters a producer adjusts iteratively. Recent large language models can discuss music theory, transcribe audio, and generate symbolic scores, but there is no standard benchmark that asks a model to \emph{edit} an existing MIDI file under a natural-language instruction while preserving everything the instruction did not mention.
+
+Existing work clusters into three nearby problems, none of which matches this task:
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Symbolic reasoning benchmarks} such as WildScore and MusicTheoryBench evaluate multiple-choice understanding over score images or theory questions, not executable edits.
+\item \textbf{Audio editing systems} such as InstructME and MuseCPBench evaluate remixing and context preservation in waveform space; RefinPaint touches MIDI but uses hyperparameters rather than free-text instructions.
+\item \textbf{Zero-shot drum editing} (Not that Groove) demonstrates instruction-driven symbolic edits with unit tests, but covers one-bar drum grooves without a preservation axis.
+\end{enumerate}
+
+MIDI-Instruct fills the gap: \emph{MIDI in, instruction in, MIDI out}, with dual metrics that mirror Music Context Preservation (MCP) but operate on symbolic features rather than rendered audio.
+
+\paragraph{Contributions.}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{MIDI-Instruct}, a JSONL benchmark format pairing MIDI, instructions, edit masks, and predicate specifications (Section~3).
+\item A \textbf{dual-metric grader} reporting \edit{}, \preserve{}, joint pass rate, over-edit rate, and optional gold note-F1 (Section~4).
+\item \textbf{MIDI-Reason}, a structured plan track scored independently from the output file (Section~3.3).
+\item An open \textbf{generation and evaluation harness} producing $\approx$300 unique-gold pilot items from programmatic seeds (Section~5).
+\end{enumerate}
+
+Later work---text-to-MIDI generation, tool-augmented agents, and self-refining harnesses---can reuse the same item schema; only the runner changes.
