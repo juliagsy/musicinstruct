@@ -36,6 +36,17 @@ def test_load_env_file_sets_missing_vars(tmp_path: Path, monkeypatch) -> None:
     llm_client._ENV_LOADED = False
 
 
+def test_parse_plan_text_prefers_valid_object_among_multiple() -> None:
+    raw = (
+        '{"op": "transpose", "params": {"semitones": 99}}\n'
+        'Explanation follows.\n'
+        '{"op": "tempo_scale", "params": {"factor": 1.25}}'
+    )
+    plan = parse_plan_text(raw)
+    assert plan.op == "tempo_scale"
+    assert plan.params["factor"] == 1.25
+
+
 def test_parse_plan_text_from_markdown_fence() -> None:
     raw = 'Here is the plan:\n```json\n{"op": "tempo_scale", "params": {"factor": 1.25}}\n```'
     plan = parse_plan_text(raw)

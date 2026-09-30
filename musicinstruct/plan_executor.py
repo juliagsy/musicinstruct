@@ -72,26 +72,50 @@ def build_plan_prompt(item: BenchmarkItem) -> str:
     return PLAN_PROMPT.format(context=context, instruction=item.instruction)
 
 
+def _extract_json_objects(text: str) -> list[str]:
+    objects: list[str] = []
+    for start, char in enumerate(text):
+        if char != "{":
+            continue
+        depth = 0
+        for end in range(start, len(text)):
+            if text[end] == "{":
+                depth += 1
+            elif text[end] == "}":
+                depth -= 1
+                if depth == 0:
+                    objects.append(text[start : end + 1])
+                    break
+    return objects
+
+
 def parse_plan_text(text: str) -> Plan:
     stripped = text.strip()
-    candidates = [stripped]
+    candidates: list[str] = []
     fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, flags=re.DOTALL | re.IGNORECASE)
     if fence_match:
-        candidates.insert(0, fence_match.group(1))
-    brace_match = re.search(r"\{.*\}", stripped, flags=re.DOTALL)
-    if brace_match:
-        candidates.append(brace_match.group(0))
+        candidates.append(fence_match.group(1))
+    candidates.extend(_extract_json_objects(stripped))
+    if stripped not in candidates:
+        candidates.append(stripped)
 
     last_error: Exception | None = None
+    valid_plans: list[Plan] = []
+    seen_candidates: set[str] = set()
     for candidate in candidates:
+        if candidate in seen_candidates:
+            continue
+        seen_candidates.add(candidate)
         try:
             payload = json.loads(candidate)
             plan = Plan.model_validate(payload)
             validate_plan(plan)
-            return plan
+            valid_plans.append(plan)
         except (json.JSONDecodeError, ValueError, TypeError) as exc:
             last_error = exc
             continue
+    if valid_plans:
+        return valid_plans[-1]
     raise ValueError(f"could not parse plan JSON from model output: {last_error}")
 
 
