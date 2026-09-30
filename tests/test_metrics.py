@@ -35,6 +35,17 @@ def test_gold_scores_perfectly(tmp_path: Path) -> None:
     assert scores.plan_match == 1.0
 
 
+def test_empty_must_preserve_scores_zero(tmp_path: Path) -> None:
+    source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
+    gold = tmp_path / "gold.mid"
+    result = transpose(source, gold, semitones=2)
+    item = _item(source, gold, result)
+    item = item.model_copy(update={"must_preserve": []})
+    scores = score_item(item, str(gold), item.plan)
+    assert scores.preserve == 0.0
+    assert scores.joint == 0.0
+
+
 def test_empty_must_change_scores_zero(tmp_path: Path) -> None:
     source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
     gold = tmp_path / "gold.mid"

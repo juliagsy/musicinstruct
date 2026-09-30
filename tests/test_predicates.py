@@ -77,6 +77,17 @@ def test_program_is_fails_on_short_hypothesis(tmp_path: Path) -> None:
     assert "out of range" in preds[0].detail
 
 
+def test_ioi_unchanged_passes_on_identical_source(tmp_path: Path) -> None:
+    source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
+    preds = evaluate_predicates(
+        [Predicate(name="ioi_unchanged_outside_mask", params={"max_mean_delta": 0.05})],
+        str(source),
+        str(source),
+        EditMask(),
+    )
+    assert preds[0].passed
+
+
 def test_pitch_shifted_fails_on_permuted_pitches(tmp_path: Path) -> None:
     source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
     permuted = tmp_path / "permuted.mid"
