@@ -20,7 +20,7 @@ pip install -e ".[dev]"
 ## Quick start
 
 ```bash
-# Generate ~300 synthetic unique-gold items
+# Generate ~300 synthetic unique-gold items (refuses overwrite unless --force)
 musicinstruct generate-pilot --output-dir data/pilot --target 300
 
 # Validate manifest and MIDI paths
@@ -41,10 +41,8 @@ pip install -e ".[llm]"
 musicinstruct run-plan-executor data/pilot/pilot.jsonl \
   --output-dir results/plan_executor_llama \
   --split test \
-  --model meta-llama/Llama-3.2-1B-Instruct \
   --device cpu \
   --max-items 5   # ~15 min/item on Mac CPU; drop for full split
-# Or pass the token directly: --hf-token hf_...
 
 # Grader stress test on local MIDIs (or MidiCaps + Lakh — see below)
 musicinstruct stress-test --midi-dir /path/to/midis --output-dir data/stress --max-files 50
