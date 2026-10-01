@@ -44,7 +44,15 @@ def _mean_score(results: list[PredicateResult]) -> float:
 
 
 def _details(results: list[PredicateResult]) -> list[dict]:
-    return [{"name": r.name, "passed": r.passed, "score": r.score, "detail": r.detail} for r in results]
+    return [
+        {
+            "name": r.name,
+            "passed": bool(r.passed),
+            "score": float(r.score),
+            "detail": r.detail,
+        }
+        for r in results
+    ]
 
 
 PLAN_PARAM_FLOAT_TOLERANCE = 1e-6
