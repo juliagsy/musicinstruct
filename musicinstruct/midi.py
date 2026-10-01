@@ -163,7 +163,7 @@ def over_edit_rate(
     if not preserve_src:
         return 0.0 if note_set(preserve_hyp) == set() else 1.0
     changed = len(note_set(preserve_src) ^ note_set(preserve_hyp))
-    return changed / max(len(note_set(preserve_src)), 1)
+    return min(1.0, changed / max(len(note_set(preserve_src)), 1))
 
 
 def midi_summary(path: str | Path) -> dict:

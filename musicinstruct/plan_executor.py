@@ -182,8 +182,6 @@ def normalize_plan(plan: Plan, item: BenchmarkItem) -> Plan:
     params = dict(plan.params)
     if plan.op == "transpose" and "tracks" not in params:
         params["tracks"] = non_drum_tracks(item.midi_in)
-    if plan.op == "velocity_scale" and "tracks" not in params:
-        params["tracks"] = list(range(len(load_midi(item.midi_in).instruments)))
     return Plan(op=plan.op, params=params)
 
 

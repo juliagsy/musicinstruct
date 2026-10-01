@@ -9,6 +9,7 @@ from pathlib import Path
 from .dataset import save_jsonl
 from .evaluation import (
     SELF_TEST_EDIT_SUCCESS_MIN,
+    SELF_TEST_PRESERVE_MIN,
     gold_predictions,
     score_records,
     write_predictions,
@@ -237,6 +238,7 @@ def run_stress_test(
     passed = (
         results["overall"]["joint"] == 1.0
         and results["overall"]["edit_success"] >= SELF_TEST_EDIT_SUCCESS_MIN
+        and results["overall"]["preserve"] >= SELF_TEST_PRESERVE_MIN
     )
     return {
         "passed": passed,

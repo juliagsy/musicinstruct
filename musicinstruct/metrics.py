@@ -133,8 +133,22 @@ def score_item(
             preserve_details=[],
         )
 
-    source_midi = load_midi(item.midi_in)
-    hyp_midi = load_midi(hypothesis_path)
+    try:
+        source_midi = load_midi(item.midi_in)
+        hyp_midi = load_midi(hypothesis_path)
+    except FileNotFoundError:
+        return ItemScores(
+            item_id=item.item_id,
+            validity=0.0,
+            edit_success=0.0,
+            preserve=0.0,
+            joint=0.0,
+            over_edit=1.0,
+            gold_note_f1=0.0 if item.gold_mode == "unique" and item.gold_midi else None,
+            plan_match=plan_exact_match(item.plan, predicted_plan),
+            edit_details=[],
+            preserve_details=[],
+        )
     source_notes = extract_notes(source_midi)
     hyp_notes = extract_notes(hyp_midi)
     edit_results = evaluate_predicates(
@@ -184,7 +198,6 @@ def aggregate_scores(rows: list[ItemScores]) -> dict:
         return {"count": 0}
     n = len(rows)
     plan_rows = [float(r.plan_match) for r in rows if r.plan_match is not None]
-    gold_rows = [float(r.gold_note_f1) for r in rows if r.gold_note_f1 is not None]
     return {
         "count": n,
         "validity": float(sum(r.validity for r in rows) / n),
@@ -192,6 +205,8 @@ def aggregate_scores(rows: list[ItemScores]) -> dict:
         "preserve": float(sum(r.preserve for r in rows) / n),
         "joint": float(sum(r.joint for r in rows) / n),
         "over_edit": float(sum(r.over_edit for r in rows) / n),
-        "gold_note_f1": float(sum(gold_rows) / len(gold_rows)) if gold_rows else None,
+        "gold_note_f1": float(
+            sum(float(r.gold_note_f1) if r.gold_note_f1 is not None else 0.0 for r in rows) / n
+        ),
         "plan_match": float(sum(plan_rows) / len(plan_rows)) if plan_rows else None,
     }

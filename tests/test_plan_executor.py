@@ -126,35 +126,6 @@ def test_build_plan_prompt_includes_instruction(tmp_path: Path) -> None:
     assert '"index": 0' in prompt
 
 
-def test_run_plan_executor_resume_recovers_existing_midi(tmp_path: Path) -> None:
-    out = tmp_path / "pilot"
-    generate_pilot_dataset(out, target=TARGET_ITEMS)
-    items = [
-        resolve_item_paths(item, out)
-        for item in load_jsonl(out / "pilot.jsonl")
-        if item.split == "test" and item.plan is not None
-    ]
-    first_item = items[0]
-    results_dir = tmp_path / "results"
-    midi_dir = results_dir / "midi"
-    midi_dir.mkdir(parents=True)
-    (midi_dir / f"{first_item.item_id}.mid").write_bytes(b"midi")
-
-    summary = run_plan_executor_suite(
-        out / "pilot.jsonl",
-        StubPlanClient({}),
-        results_dir,
-        split="test",
-        max_items=1,
-        resume=True,
-    )
-    assert summary["batch_count"] == 1
-    assert summary["total_predictions"] == 2
-    assert first_item.item_id not in {
-        failure["item_id"] for failure in summary.get("batch_failures", [])
-    }
-
-
 def test_run_plan_executor_resume_merges_predictions(tmp_path: Path) -> None:
     out = tmp_path / "pilot"
     generate_pilot_dataset(out, target=TARGET_ITEMS)

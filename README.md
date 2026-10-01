@@ -73,7 +73,7 @@ This validates the grader on real files (transpose + tempo per MIDI). It does **
 | `edit_success` | Mean score of `must_change` predicates |
 | `preserve` | Mean score of `must_preserve` predicates |
 | `joint` | Pass if both axes ≥ threshold (default 0.9) |
-| `over_edit` | Fraction of notes changed outside the edit mask |
+| `over_edit` | Symmetric-difference rate on notes outside the edit mask (0--1, capped) |
 | `gold_note_f1` | Note F1 vs gold MIDI on the edit region (`unique` gold) |
 | `plan_match` | Exact match on structured plan (MIDI-Reason) |
 

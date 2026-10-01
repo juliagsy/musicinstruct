@@ -3,7 +3,7 @@ from pathlib import Path
 from musicinstruct.dataset import save_jsonl, validate_dataset
 from musicinstruct.evaluation import gold_predictions, score_records, write_predictions
 from musicinstruct.schema import Prediction
-from musicinstruct.generate import generate_pilot_dataset
+from musicinstruct.generate import TARGET_ITEMS, generate_pilot_dataset
 from musicinstruct.schema import BenchmarkItem
 from musicinstruct.transforms import make_seed_midi, transpose
 
@@ -56,6 +56,25 @@ def test_score_records_resolves_cwd_relative_midi_path(tmp_path: Path, monkeypat
     )
     results = score_records(manifest, preds_dir / "predictions.jsonl", item_ids={item.item_id})
     assert results["items"][0]["validity"] == 1.0
+
+
+def test_missing_prediction_gold_note_f1_counts_as_zero(tmp_path: Path) -> None:
+    out = tmp_path / "pilot"
+    generate_pilot_dataset(out, target=TARGET_ITEMS)
+    manifest = out / "pilot.jsonl"
+    from musicinstruct.dataset import load_jsonl, resolve_item_paths
+
+    item = resolve_item_paths(
+        next(i for i in load_jsonl(manifest) if i.split == "test"),
+        out,
+    )
+    preds = tmp_path / "preds.jsonl"
+    write_predictions(
+        preds,
+        [Prediction(item_id=item.item_id, midi_path=None, plan=None, metadata={})],
+    )
+    results = score_records(manifest, preds, split="test", item_ids={item.item_id})
+    assert results["overall"]["gold_note_f1"] == 0.0
 
 
 def test_missing_prediction_scores_zero(tmp_path: Path) -> None:

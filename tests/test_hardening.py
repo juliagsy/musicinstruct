@@ -204,7 +204,7 @@ def test_edit_mask_rejects_inverted_time_range() -> None:
         EditMask(start_time=4.0, end_time=1.0)
 
 
-def test_normalize_velocity_defaults_to_all_tracks(tmp_path: Path) -> None:
+def test_normalize_velocity_leaves_tracks_unspecified(tmp_path: Path) -> None:
     source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
     item = BenchmarkItem(
         item_id="x",
@@ -215,4 +215,4 @@ def test_normalize_velocity_defaults_to_all_tracks(tmp_path: Path) -> None:
         midi_in=str(source),
     )
     plan = normalize_plan(Plan(op="velocity_scale", params={"factor": 0.5}), item)
-    assert plan.params["tracks"] == [0, 1, 2]
+    assert "tracks" not in plan.params

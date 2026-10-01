@@ -25,6 +25,7 @@ def test_baselines_on_pilot_test_split(tmp_path: Path) -> None:
     assert oracle["joint"] == 1.0
     assert copy_src["edit_success"] < 0.5
     assert wrong["joint"] == 0.0
+    assert wrong["plan_match"] == 0.0
     assert missing["joint"] == 0.0
 
 

@@ -1,7 +1,7 @@
 \section{Experimental setup}
 
 \paragraph{Reference baselines.}
-We ship four programmatic baselines on the test split (\texttt{run-baselines}): \textbf{oracle} (gold MIDI), \textbf{copy\_source} (unchanged input), \textbf{wrong\_transform} (incorrect op parameters), and \textbf{no\_output} (missing prediction). On the pilot test set ($n{=}20$): oracle achieves joint $=1.0$; copy-source edit-success $\approx 0.15$ with joint $=0$; wrong-transform and no-output both joint $=0$. Future work adds zero-shot LLMs and symbolic editing models without instruction conditioning.
+We ship four programmatic baselines on the test split (\texttt{run-baselines}): \textbf{oracle} (gold MIDI), \textbf{copy\_source} (unchanged input), \textbf{wrong\_transform} (incorrect op parameters), and \textbf{no\_output} (missing prediction). On the pilot test set ($n{=}50$, compositions \texttt{seed\_10}--\texttt{seed\_11}): oracle achieves joint $=1.0$; copy-source edit-success $\approx 0.15$ with joint $=0$; wrong-transform and no-output both joint $=0$ with plan-match $=0$ for wrong-transform. Future work adds zero-shot LLMs and symbolic editing models without instruction conditioning.
 
 \paragraph{Prediction format.}
 Models write one MIDI file per item. JSONL predictions reference \texttt{midi\_path} relative to the predictions file and optional \texttt{plan}.

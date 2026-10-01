@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 from .midi import load_midi
-from .schema import BenchmarkItem, Prediction
+from .schema import BenchmarkItem, Plan, Prediction
 from .transforms import (
     mute_tracks,
     non_drum_tracks,
@@ -28,40 +28,76 @@ def _wrong_semitones(expected: int) -> int:
     return expected + 2 if expected >= 0 else expected - 2
 
 
-def _render_wrong_transform(item: BenchmarkItem, destination: Path) -> Path:
+def _wrong_plan(item: BenchmarkItem) -> Plan | None:
     if item.plan is None:
-        shutil.copy2(item.midi_in, destination)
-        return destination
+        return None
 
     op = item.plan.op
-    params = item.plan.params
+    params = dict(item.plan.params)
     source = item.midi_in
 
     if op == "transpose":
-        expected = int(params["semitones"])
-        tracks = list(params.get("tracks", non_drum_tracks(source)))
-        transpose(source, destination, semitones=_wrong_semitones(expected), tracks=tracks)
+        params["semitones"] = _wrong_semitones(int(params["semitones"]))
+        if "tracks" not in params:
+            params["tracks"] = non_drum_tracks(source)
     elif op == "tempo_scale":
         factor = float(params["factor"])
-        wrong = factor * 1.35 if factor >= 1.0 else factor * 0.65
-        tempo_scale(source, destination, factor=wrong)
+        params["factor"] = factor * 1.35 if factor >= 1.0 else factor * 0.65
     elif op == "velocity_scale":
         factor = float(params["factor"])
-        tracks = list(params.get("tracks", [0]))
-        wrong = min(1.5, factor * 1.4) if factor <= 1.0 else max(0.5, factor * 0.6)
-        velocity_scale(source, destination, factor=wrong, tracks=tracks)
+        params["factor"] = min(1.5, factor * 1.4) if factor <= 1.0 else max(0.5, factor * 0.6)
+        if "tracks" not in params:
+            params["tracks"] = [0]
     elif op == "mute_tracks":
         tracks = list(params["tracks"])
         instruments = len(load_midi(source).instruments)
         wrong_track = (tracks[0] + 1) % instruments if instruments else 0
         if wrong_track in tracks and instruments > 1:
             wrong_track = (wrong_track + 1) % instruments
-        mute_tracks(source, destination, tracks=[wrong_track])
+        params["tracks"] = [wrong_track]
     elif op == "program_change":
-        track = int(params["track"])
         program = int(params["program"])
-        alt = 25 if program != 25 else 40
-        program_change(source, destination, track=track, program=alt)
+        params["program"] = 25 if program != 25 else 40
+    else:
+        return None
+    return Plan(op=op, params=params)
+
+
+def _render_wrong_transform(item: BenchmarkItem, destination: Path) -> Path:
+    wrong_plan = _wrong_plan(item)
+    if wrong_plan is None:
+        shutil.copy2(item.midi_in, destination)
+        return destination
+
+    op = wrong_plan.op
+    params = wrong_plan.params
+    source = item.midi_in
+
+    if op == "transpose":
+        transpose(
+            source,
+            destination,
+            semitones=int(params["semitones"]),
+            tracks=list(params.get("tracks", non_drum_tracks(source))),
+        )
+    elif op == "tempo_scale":
+        tempo_scale(source, destination, factor=float(params["factor"]))
+    elif op == "velocity_scale":
+        velocity_scale(
+            source,
+            destination,
+            factor=float(params["factor"]),
+            tracks=list(params.get("tracks", [0])),
+        )
+    elif op == "mute_tracks":
+        mute_tracks(source, destination, tracks=[int(t) for t in params["tracks"]])
+    elif op == "program_change":
+        program_change(
+            source,
+            destination,
+            track=int(params["track"]),
+            program=int(params["program"]),
+        )
     else:
         shutil.copy2(source, destination)
     return destination
@@ -98,7 +134,7 @@ def predict_baseline(item: BenchmarkItem, baseline: str, cache_dir: Path) -> Pre
     return Prediction(
         item_id=item.item_id,
         midi_path=str(destination),
-        plan=item.plan,
+        plan=_wrong_plan(item),
         metadata={"baseline": baseline},
     )
 

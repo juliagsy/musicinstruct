@@ -118,7 +118,11 @@ def cmd_run_plan_executor(args: argparse.Namespace) -> int:
         resume=args.resume,
     )
     _print_json(summary)
-    return 0 if "error" not in summary else 1
+    if "error" in summary:
+        return 1
+    if summary.get("batch_failure_count", 0) > 0:
+        return 1
+    return 0
 
 
 def cmd_stress_test(args: argparse.Namespace) -> int:

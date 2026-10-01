@@ -155,16 +155,29 @@ def _pitch_shift_delta(
     if not src_in_mask:
         return None, "no source notes in mask"
 
-    hyp_by_key: dict[tuple[int, float], int] = {}
+    hyp_by_track: dict[int, list[tuple[float, int]]] = {}
     for note in hypothesis:
         if note.track in tracks and note_in_mask(note, mask):
-            hyp_by_key[(note.track, round(note.start, 3))] = note.pitch
+            hyp_by_track.setdefault(note.track, []).append((note.start, note.pitch))
+    for track_notes in hyp_by_track.values():
+        track_notes.sort(key=lambda pair: pair[0])
 
+    used: set[tuple[int, int]] = set()
     deltas: list[float] = []
     for note in src_in_mask:
-        key = (note.track, round(note.start, 3))
-        if key in hyp_by_key:
-            deltas.append(hyp_by_key[key] - note.pitch)
+        candidates = hyp_by_track.get(note.track, [])
+        best_idx: int | None = None
+        best_delta = float("inf")
+        for idx, (start, pitch) in enumerate(candidates):
+            if (note.track, idx) in used:
+                continue
+            delta_t = abs(start - note.start)
+            if delta_t <= 0.02 and delta_t < best_delta:
+                best_idx = idx
+                best_delta = delta_t
+        if best_idx is not None:
+            used.add((note.track, best_idx))
+            deltas.append(candidates[best_idx][1] - note.pitch)
 
     coverage = len(deltas) / len(src_in_mask)
     if coverage < min_coverage:

@@ -47,6 +47,46 @@ def _split_for_seed(seed_index: int) -> str:
     return "test"
 
 
+def _trim_items_by_op_family(items: list[BenchmarkItem], target: int) -> list[BenchmarkItem]:
+    if len(items) <= target:
+        return items
+    by_op: dict[str, list[BenchmarkItem]] = {}
+    for item in items:
+        by_op.setdefault(item.op_family, []).append(item)
+    for bucket in by_op.values():
+        bucket.sort(key=lambda item: item.item_id)
+    total = len(items)
+    trimmed: list[BenchmarkItem] = []
+    remaining = target
+    op_names = sorted(by_op)
+    for index, op in enumerate(op_names):
+        bucket = by_op[op]
+        if index == len(op_names) - 1:
+            take = remaining
+        else:
+            take = max(1, round(target * len(bucket) / total))
+            remaining -= take
+        trimmed.extend(bucket[:take])
+    return sorted(trimmed, key=lambda item: item.item_id)[:target]
+
+
+def _trim_to_target(items: list[BenchmarkItem], target: int) -> list[BenchmarkItem]:
+    """Trim proportionally within each composition so every seed keeps representation."""
+    if len(items) <= target:
+        return items
+    by_composition: dict[str, list[BenchmarkItem]] = {}
+    for item in items:
+        by_composition.setdefault(item.composition_id, []).append(item)
+    composition_ids = sorted(by_composition)
+    base = target // len(composition_ids)
+    remainder = target % len(composition_ids)
+    trimmed: list[BenchmarkItem] = []
+    for index, composition_id in enumerate(composition_ids):
+        take = base + (1 if index < remainder else 0)
+        trimmed.extend(_trim_items_by_op_family(by_composition[composition_id], take))
+    return sorted(trimmed, key=lambda item: item.item_id)
+
+
 def _copy_seed(source: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
@@ -213,22 +253,7 @@ def generate_pilot_dataset(
 
     items.sort(key=lambda item: item.item_id)
     if len(items) > target:
-        by_op: dict[str, list[BenchmarkItem]] = {}
-        for item in items:
-            by_op.setdefault(item.op_family, []).append(item)
-        total = len(items)
-        trimmed: list[BenchmarkItem] = []
-        remaining = target
-        op_names = sorted(by_op)
-        for index, op in enumerate(op_names):
-            bucket = by_op[op]
-            if index == len(op_names) - 1:
-                take = remaining
-            else:
-                take = max(1, round(target * len(bucket) / total))
-                remaining -= take
-            trimmed.extend(bucket[:take])
-        items = sorted(trimmed, key=lambda item: item.item_id)[:target]
+        items = _trim_to_target(items, target)
 
     manifest = output_dir / "pilot.jsonl"
     save_jsonl(manifest, items)

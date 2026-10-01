@@ -8,29 +8,7 @@ from pathlib import Path
 from .dataset import load_jsonl, resolve_item_paths
 from .evaluation import filter_items, load_predictions, merge_predictions, score_records, write_predictions
 from .plan_executor import PlanClient, predict_plan_executor
-from .schema import BenchmarkItem, Prediction
-
-
-def _recover_predictions_from_midi(
-    output_dir: Path,
-    items: list[BenchmarkItem],
-    existing: dict[str, Prediction],
-) -> dict[str, Prediction]:
-    midi_dir = output_dir / "midi"
-    if not midi_dir.is_dir():
-        return existing
-    recovered = dict(existing)
-    for item in items:
-        if item.item_id in recovered:
-            continue
-        midi_path = midi_dir / f"{item.item_id}.mid"
-        if midi_path.is_file():
-            recovered[item.item_id] = Prediction(
-                item_id=item.item_id,
-                midi_path=str(midi_path),
-                metadata={"recovered_from_midi": True},
-            )
-    return recovered
+from .schema import Prediction
 
 
 def run_plan_executor_suite(
@@ -55,16 +33,8 @@ def run_plan_executor_suite(
     )
     pred_path = output_dir / "predictions.jsonl"
     existing_predictions: dict[str, Prediction] = {}
-    if resume:
-        if pred_path.is_file():
-            existing_predictions = load_predictions(pred_path)
-        existing_predictions = _recover_predictions_from_midi(
-            output_dir,
-            list(split_items),
-            existing_predictions,
-        )
-        if existing_predictions and not pred_path.is_file():
-            write_predictions(pred_path, list(existing_predictions.values()))
+    if resume and pred_path.is_file():
+        existing_predictions = load_predictions(pred_path)
 
     items = list(split_items)
     if resume:
