@@ -42,7 +42,9 @@ musicinstruct run-plan-executor data/pilot/pilot.jsonl \
   --output-dir results/plan_executor_llama \
   --split test \
   --device cpu \
-  --max-items 5   # ~15 min/item on Mac CPU; drop for full split
+  --max-items 5 \
+  --max-new-tokens 128 \
+  --resume        # merge into existing predictions.jsonl; rerun for next batch
 
 # Grader stress test on local MIDIs (or MidiCaps + Lakh — see below)
 musicinstruct stress-test --midi-dir /path/to/midis --output-dir data/stress --max-files 50

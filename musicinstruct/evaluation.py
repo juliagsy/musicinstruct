@@ -22,17 +22,32 @@ def filter_items(items: list[BenchmarkItem], split: str | None = None) -> list[B
     return [item for item in items if item.split == split]
 
 
+def _resolve_midi_path(path: str | Path, base_dir: Path) -> Path:
+    midi_path = Path(path)
+    if midi_path.is_absolute():
+        return midi_path.resolve()
+    return (Path.cwd() / midi_path).resolve()
+
+
 def _relative_midi_path(path: str | None, base_dir: Path) -> str | None:
     if path is None:
         return None
-    midi_path = Path(path)
     base = base_dir.resolve()
-    if midi_path.is_absolute():
-        try:
-            return str(midi_path.resolve().relative_to(base))
-        except ValueError:
-            return str(midi_path)
-    return str(midi_path)
+    resolved = _resolve_midi_path(path, base_dir)
+    try:
+        return str(resolved.relative_to(base))
+    except ValueError:
+        return str(path)
+
+
+def _hypothesis_path(midi_path: str, pred_root: Path) -> str:
+    path = Path(midi_path)
+    if path.is_absolute():
+        return str(path.resolve())
+    for candidate in ((pred_root / path).resolve(), _resolve_midi_path(path, pred_root)):
+        if candidate.is_file():
+            return str(candidate)
+    return str((pred_root / path).resolve())
 
 
 def score_records(
@@ -71,8 +86,7 @@ def score_records(
         hypothesis: str | None = None
         plan = pred.plan if pred else None
         if pred and pred.midi_path:
-            path = Path(pred.midi_path)
-            hypothesis = str(path if path.is_absolute() else (pred_root / path).resolve())
+            hypothesis = _hypothesis_path(pred.midi_path, pred_root)
         rows.append(score_item(item, hypothesis, plan, joint_threshold=joint_threshold))
 
     by_op: dict[str, list[ItemScores]] = {}
@@ -125,12 +139,23 @@ def gold_predictions(items: list[BenchmarkItem]) -> list[Prediction]:
     ]
 
 
+def merge_predictions(
+    existing: dict[str, Prediction],
+    new_predictions: list[Prediction],
+) -> dict[str, Prediction]:
+    merged = dict(existing)
+    for pred in new_predictions:
+        merged[pred.item_id] = pred
+    return merged
+
+
 def write_predictions(path: str | Path, predictions: list[Prediction]) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     base_dir = path.parent.resolve()
+    ordered = sorted(predictions, key=lambda pred: pred.item_id)
     with path.open("w", encoding="utf-8") as stream:
-        for pred in predictions:
+        for pred in ordered:
             payload = pred.model_dump()
             payload["midi_path"] = _relative_midi_path(pred.midi_path, base_dir)
             stream.write(json.dumps(payload) + "\n")

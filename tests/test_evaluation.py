@@ -2,6 +2,7 @@ from pathlib import Path
 
 from musicinstruct.dataset import save_jsonl, validate_dataset
 from musicinstruct.evaluation import gold_predictions, score_records, write_predictions
+from musicinstruct.schema import Prediction
 from musicinstruct.generate import generate_pilot_dataset
 from musicinstruct.schema import BenchmarkItem
 from musicinstruct.transforms import make_seed_midi, transpose
@@ -26,6 +27,35 @@ def test_end_to_end_self_score(tmp_path: Path) -> None:
     assert results["overall"]["preserve"] == 1.0
     assert results["prediction_coverage"] == 1.0
     assert results["missing_prediction_ids"] == []
+
+
+def test_score_records_resolves_cwd_relative_midi_path(tmp_path: Path, monkeypatch) -> None:
+    out = tmp_path / "pilot"
+    generate_pilot_dataset(out, target=300)
+    manifest = out / "pilot.jsonl"
+    item = next(i for i in __import__("musicinstruct.dataset", fromlist=["load_jsonl"]).load_jsonl(manifest) if i.split == "test")
+    from musicinstruct.dataset import load_jsonl, resolve_item_paths
+
+    item = resolve_item_paths(item, out)
+    preds_dir = tmp_path / "results"
+    midi_dir = preds_dir / "midi"
+    midi_dir.mkdir(parents=True)
+    gold = Path(item.gold_midi)
+    dest = midi_dir / f"{item.item_id}.mid"
+    dest.write_bytes(gold.read_bytes())
+    monkeypatch.chdir(tmp_path)
+    write_predictions(
+        preds_dir / "predictions.jsonl",
+        [
+            Prediction(
+                item_id=item.item_id,
+                midi_path=str(Path.cwd().relative_to(tmp_path) / "results" / "midi" / f"{item.item_id}.mid"),
+                plan=item.plan,
+            )
+        ],
+    )
+    results = score_records(manifest, preds_dir / "predictions.jsonl", item_ids={item.item_id})
+    assert results["items"][0]["validity"] == 1.0
 
 
 def test_missing_prediction_scores_zero(tmp_path: Path) -> None:

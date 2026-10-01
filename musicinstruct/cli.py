@@ -114,6 +114,8 @@ def cmd_run_plan_executor(args: argparse.Namespace) -> int:
         joint_threshold=args.joint_threshold,
         runner_name=f"plan_executor_{Path(args.model).name}",
         max_items=args.max_items,
+        offset=args.offset,
+        resume=args.resume,
     )
     _print_json(summary)
     return 0 if "error" not in summary else 1
@@ -172,7 +174,18 @@ def build_parser() -> argparse.ArgumentParser:
     plan_exec.add_argument("--device", default="auto", choices=["auto", "cpu", "mps", "cuda"])
     plan_exec.add_argument("--max-new-tokens", type=int, default=256)
     plan_exec.add_argument("--temperature", type=float, default=0.0)
-    plan_exec.add_argument("--max-items", type=int, default=None, help="Limit items for quick runs")
+    plan_exec.add_argument("--max-items", type=int, default=None, help="Limit items processed this batch")
+    plan_exec.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Skip the first N pending items in the split before processing",
+    )
+    plan_exec.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip items already in predictions.jsonl and merge new results",
+    )
     plan_exec.add_argument("--joint-threshold", type=float, default=0.9)
     plan_exec.set_defaults(func=cmd_run_plan_executor)
 
