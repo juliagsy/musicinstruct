@@ -10,8 +10,9 @@ Colab gives **each notebook its own VM**. Pass artifacts through **Google Drive*
 |------------|----------|
 | `MyDrive/musicinstruct/data/pilot/` | Generated pilot dataset (300 items, reusable) |
 | `MyDrive/musicinstruct/runs/<RUN_ID>/plan_executor_llama/` | Predictions, MIDI outputs, reports |
+| `MyDrive/musicinstruct/runs/<RUN_ID>/baselines/` | Programmatic baseline predictions + report |
 
-Keep **`RUN_ID`** identical across notebooks (default: `pilot_v1`).
+Keep **`RUN_ID`** identical across notebooks (default: `pilot_v1`). Local clone paths mirror Drive (`results/plan_executor_llama/`, `results/baselines/`).
 
 ## Prerequisites
 
