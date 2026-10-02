@@ -11,7 +11,7 @@ from pathlib import Path
 from .benchmark_runner import run_baseline_suite
 from .dataset import load_jsonl, resolve_item_paths, validate_dataset
 from .evaluation import gold_predictions, score_records, self_test_passed, write_predictions
-from .generate import generate_pilot_dataset
+from .generate import REAL_TARGET_ITEMS, generate_pilot_dataset, generate_real_from_midicaps
 from .llm_client import DEFAULT_LLAMA_MODEL, LlamaPlanClient
 from .midi import midi_summary
 from .plan_runner import run_plan_executor_suite
@@ -55,6 +55,41 @@ def cmd_generate_pilot(args: argparse.Namespace) -> int:
     manifest = Path(args.output_dir) / "pilot.jsonl"
     report = validate_dataset(manifest)
     _print_json({"generated": len(items), "manifest": str(manifest), "validation": report})
+    return 0 if report["valid"] else 1
+
+
+def cmd_generate_real(args: argparse.Namespace) -> int:
+    try:
+        items, seeds = generate_real_from_midicaps(
+            args.output_dir,
+            args.lakh_root,
+            target=args.target,
+            seed_limit=args.seed_limit,
+            midicaps_limit=args.midicaps_limit,
+            force=args.force,
+            manifest_name=args.manifest_name,
+        )
+    except (FileExistsError, RuntimeError, ValueError) as exc:
+        _print_json({"error": str(exc)})
+        return 1
+    manifest = Path(args.output_dir) / args.manifest_name
+    report = validate_dataset(manifest)
+    split_counts = {}
+    composition_counts = {}
+    for item in items:
+        split_counts[item.split] = split_counts.get(item.split, 0) + 1
+        if item.split == "test":
+            composition_counts[item.composition_id] = composition_counts.get(item.composition_id, 0) + 1
+    _print_json(
+        {
+            "generated": len(items),
+            "seeds": len(seeds),
+            "manifest": str(manifest),
+            "splits": split_counts,
+            "test_compositions": len(composition_counts),
+            "validation": report,
+        }
+    )
     return 0 if report["valid"] else 1
 
 
@@ -225,6 +260,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Overwrite an existing output directory",
     )
     generate.set_defaults(func=cmd_generate_pilot)
+
+    generate_real = sub.add_parser(
+        "generate-real",
+        help="Generate benchmark from filtered MidiCaps/Lakh seeds (requires .[stress])",
+    )
+    generate_real.add_argument("--lakh-root", required=True, help="Root of Lakh MIDI tree (lmd_full/)")
+    generate_real.add_argument("--output-dir", default="data/v0.2")
+    generate_real.add_argument("--target", type=int, default=REAL_TARGET_ITEMS)
+    generate_real.add_argument("--seed-limit", type=int, default=500, help="Max composition seeds")
+    generate_real.add_argument("--midicaps-limit", type=int, default=5000, help="Max MidiCaps rows to scan")
+    generate_real.add_argument("--manifest-name", default="manifest.jsonl")
+    generate_real.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing output directory",
+    )
+    generate_real.set_defaults(func=cmd_generate_real)
 
     self_test = sub.add_parser("self-test", help="Score gold MIDIs against themselves")
     self_test.add_argument("dataset")

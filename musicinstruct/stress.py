@@ -16,6 +16,7 @@ from .evaluation import (
 )
 from .midi import validate_midi
 from .schema import BenchmarkItem
+from .seeds import resolve_midicaps_paths as _resolve_midicaps_rows
 from .transforms import non_drum_tracks, tempo_scale, transpose
 
 STRESS_OPS = ("transpose", "tempo_scale")
@@ -32,29 +33,13 @@ def resolve_midicaps_paths(
     test_set_only: bool = False,
 ) -> list[Path]:
     """Resolve MidiCaps `location` fields to local Lakh MIDI paths."""
-    try:
-        from datasets import load_dataset
-    except ImportError as exc:
-        raise ImportError(
-            "MidiCaps loading requires optional dependency: pip install -e '.[stress]'"
-        ) from exc
-
-    lakh_root = Path(lakh_root)
-    dataset = load_dataset("amaai-lab/MidiCaps", split="train")
+    rows = _resolve_midicaps_rows(lakh_root, limit=limit, test_set_only=test_set_only)
     paths: list[Path] = []
-    for row in dataset:
-        if test_set_only and not row.get("test_set", False):
-            continue
-        location = row.get("location")
-        if not location:
-            continue
-        candidate = lakh_root / str(location)
-        if not candidate.is_file():
-            continue
-        ok, _ = validate_midi(candidate)
+    for row in rows:
+        ok, _ = validate_midi(row["path"])
         if not ok:
             continue
-        paths.append(candidate.resolve())
+        paths.append(row["path"])
         if len(paths) >= limit:
             break
     return paths
