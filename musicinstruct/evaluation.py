@@ -9,7 +9,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from .dataset import load_jsonl, resolve_item_paths
-from .metrics import ItemScores, aggregate_scores, score_item
+from .metrics import ItemScores, aggregate_by_composition, aggregate_scores, score_item
 from .schema import BenchmarkItem, Prediction
 
 SELF_TEST_EDIT_SUCCESS_MIN = 0.999
@@ -96,6 +96,8 @@ def score_records(
     for item, row in zip(items, rows, strict=True):
         by_op.setdefault(item.op_family, []).append(row)
 
+    composition_macro, by_composition = aggregate_by_composition(items, rows)
+
     return {
         "n_gold": len(items),
         "n_predictions": len(predictions),
@@ -105,6 +107,8 @@ def score_records(
         "split": split,
         "joint_threshold": joint_threshold,
         "overall": aggregate_scores(rows),
+        "composition_macro": composition_macro,
+        "by_composition": by_composition,
         "by_op_family": {op: aggregate_scores(group) for op, group in sorted(by_op.items())},
         "items": [row.as_dict() for row in rows],
         "unmatched_prediction_ids": sorted(set(predictions) - gold_ids),

@@ -59,6 +59,9 @@ def cmd_generate_pilot(args: argparse.Namespace) -> int:
 
 
 def cmd_generate_real(args: argparse.Namespace) -> int:
+    test_max = args.test_max_per_composition
+    if test_max <= 0:
+        test_max = None
     try:
         items, seeds = generate_real_from_midicaps(
             args.output_dir,
@@ -68,6 +71,8 @@ def cmd_generate_real(args: argparse.Namespace) -> int:
             midicaps_limit=args.midicaps_limit,
             force=args.force,
             manifest_name=args.manifest_name,
+            test_max_per_composition=test_max,
+            test_subsample_seed=args.test_subsample_seed,
         )
     except (FileExistsError, RuntimeError, ValueError) as exc:
         _print_json({"error": str(exc)})
@@ -76,10 +81,13 @@ def cmd_generate_real(args: argparse.Namespace) -> int:
     report = validate_dataset(manifest)
     split_counts = {}
     composition_counts = {}
+    max_test_items_per_composition = 0
     for item in items:
         split_counts[item.split] = split_counts.get(item.split, 0) + 1
         if item.split == "test":
             composition_counts[item.composition_id] = composition_counts.get(item.composition_id, 0) + 1
+    if composition_counts:
+        max_test_items_per_composition = max(composition_counts.values())
     _print_json(
         {
             "generated": len(items),
@@ -87,6 +95,7 @@ def cmd_generate_real(args: argparse.Namespace) -> int:
             "manifest": str(manifest),
             "splits": split_counts,
             "test_compositions": len(composition_counts),
+            "max_test_items_per_composition": max_test_items_per_composition,
             "validation": report,
         }
     )
@@ -107,14 +116,17 @@ def cmd_self_test(args: argparse.Namespace) -> int:
     finally:
         preds_path.unlink(missing_ok=True)
     passed = self_test_passed(results["overall"])
+    composition_macro = results.get("composition_macro", {})
+    composition_passed = self_test_passed(composition_macro) if composition_macro.get("count") else True
     _print_json(
         {
-            "self_test_passed": passed,
+            "self_test_passed": passed and composition_passed,
             "overall": results["overall"],
+            "composition_macro": composition_macro,
             "prediction_coverage": results["prediction_coverage"],
         }
     )
-    return 0 if passed else 1
+    return 0 if passed and composition_passed else 1
 
 
 def cmd_midi_summary(args: argparse.Namespace) -> int:
@@ -271,6 +283,18 @@ def build_parser() -> argparse.ArgumentParser:
     generate_real.add_argument("--seed-limit", type=int, default=500, help="Max composition seeds")
     generate_real.add_argument("--midicaps-limit", type=int, default=5000, help="Max MidiCaps rows to scan")
     generate_real.add_argument("--manifest-name", default="manifest.jsonl")
+    generate_real.add_argument(
+        "--test-max-per-composition",
+        type=int,
+        default=6,
+        help="Cap test items per composition after stratified op subsampling (0 disables)",
+    )
+    generate_real.add_argument(
+        "--test-subsample-seed",
+        type=int,
+        default=0,
+        help="RNG seed for test subsampling",
+    )
     generate_real.add_argument(
         "--force",
         action="store_true",

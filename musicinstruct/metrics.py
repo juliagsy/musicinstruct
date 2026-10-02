@@ -218,3 +218,55 @@ def aggregate_scores(rows: list[ItemScores]) -> dict:
         ),
         "plan_match": float(sum(plan_rows) / len(plan_rows)) if plan_rows else None,
     }
+
+
+def aggregate_by_composition(
+    items: list[BenchmarkItem],
+    rows: list[ItemScores],
+) -> tuple[dict, dict[str, dict]]:
+    """Return composition-macro scores and per-composition item-micro aggregates."""
+    by_composition: dict[str, list[ItemScores]] = {}
+    for item, row in zip(items, rows, strict=True):
+        by_composition.setdefault(item.composition_id, []).append(row)
+
+    if not by_composition:
+        return {"count": 0, "n_compositions": 0}, {}
+
+    per_composition = {
+        composition_id: aggregate_scores(comp_rows)
+        for composition_id, comp_rows in sorted(by_composition.items())
+    }
+    n_compositions = len(per_composition)
+    composition_macro = {
+        "count": sum(stats["count"] for stats in per_composition.values()),
+        "n_compositions": n_compositions,
+        "validity": float(
+            sum(stats["validity"] for stats in per_composition.values()) / n_compositions
+        ),
+        "edit_success": float(
+            sum(stats["edit_success"] for stats in per_composition.values()) / n_compositions
+        ),
+        "preserve": float(
+            sum(stats["preserve"] for stats in per_composition.values()) / n_compositions
+        ),
+        "joint": float(sum(stats["joint"] for stats in per_composition.values()) / n_compositions),
+        "over_edit": float(
+            sum(stats["over_edit"] for stats in per_composition.values()) / n_compositions
+        ),
+        "gold_note_f1": float(
+            sum(stats["gold_note_f1"] for stats in per_composition.values()) / n_compositions
+        ),
+        "plan_match": _macro_plan_match(per_composition),
+    }
+    return composition_macro, per_composition
+
+
+def _macro_plan_match(per_composition: dict[str, dict]) -> float | None:
+    plan_values = [
+        stats["plan_match"]
+        for stats in per_composition.values()
+        if stats.get("plan_match") is not None
+    ]
+    if not plan_values:
+        return None
+    return float(sum(plan_values) / len(plan_values))
