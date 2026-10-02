@@ -2,8 +2,12 @@
 
 \begin{itemize}[leftmargin=*]
 \item \textbf{Synthetic seeds.} v0.1 items are programmatic, not drawn from professional arrangements; absolute scores may not transfer to in-the-wild MIDI complexity.
+\item \textbf{Small held-out composition set.} The 50 test items derive from only two seed compositions. Multiple parameterizations of the same seed are correlated, so item-level averages should not be interpreted as confidence across musical styles.
 \item \textbf{Unique gold only.} Descriptive instructions with many valid outputs are deferred; current metrics may over-penalize creative but valid edits once constraint gold arrives.
-\item \textbf{Operator coverage.} Five invertible families do not cover harmonization, re-orchestration, or bar-level rewriting; difficulty is intentionally controlled for grader validation.
-\item \textbf{No bundled models.} This release is benchmark infrastructure; comparative LLM numbers require a separate evaluation pass.
+\item \textbf{Predicate scope.} \preserve{} evaluates each item's declared predicate list, not every possible MIDI event or metadata field. In particular, within-mask attributes not named by a predicate may change without reducing \preserve{}. Broader releases should add operation-specific invariants and adversarial tests.
+\item \textbf{Operator coverage.} Five programmatically verifiable families do not cover harmonization, re-orchestration, or bar-level rewriting; difficulty is intentionally controlled for grader validation.
+\item \textbf{Single model baseline.} The model study uses one small open LLM with greedy decoding and no retries. It establishes that the harness exposes interpretable failures, not a ranking of current instruction-following systems.
+\item \textbf{Plan representation.} Exact plan match can reject a plan that produces a predicate-correct file when parameters differ from the canonical representation. We therefore treat plan match as diagnostic and file-level joint success as primary.
+\item \textbf{Generation cap.} Eleven failures are incomplete plans under a 128-token cap. A larger cap, constrained decoding, or schema repair would likely improve validity, so the reported model score characterizes this fixed runner rather than the model in isolation.
 \item \textbf{Tempo estimation.} BPM ratio checks depend on pretty\_midi tempo estimation; extreme rubato seeds may add noise.
 \end{itemize}

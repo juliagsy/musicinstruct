@@ -2,11 +2,11 @@
 
 \subsection{Task definition}
 
-Given source MIDI $x$, instruction $e$, a system produces edited MIDI $\hat{x}$ and optionally a structured plan $\hat{p}$. The instruction specifies attributes that \emph{must change}; all other attributes \emph{should preserve} unless the instruction explicitly overrides them.
+Given source MIDI $x$, instruction $e$, a system produces edited MIDI $\hat{x}$ and optionally a structured plan $\hat{p}$. The instruction specifies attributes that \emph{must change}; all other attributes \emph{should preserve} unless the instruction explicitly overrides them. The current grader operationalizes this goal through an explicit, finite list of preservation predicates per item rather than claiming exhaustive equivalence over every MIDI event type.
 
 Each benchmark item stores:
 \begin{itemize}[leftmargin=*]
-\item paths to $x$ and (for unique gold) reference $x^\*$;
+\item paths to $x$ and (for unique gold) reference $x^{*}$;
 \item instruction $e$ and operator family label;
 \item edit mask $m$ (tracks and optional time window);
 \item lists of \texttt{must\_change} and \texttt{must\_preserve} predicates;
@@ -16,10 +16,10 @@ Each benchmark item stores:
 \subsection{Gold modes}
 
 \paragraph{Unique gold (v0.1).}
-Apply deterministic transform $T_\theta$ to seed MIDI, verbalize $\theta$ as $e$, store $x^\* = T_\theta(x)$. Enables note-F1 and exact plan matching.
+Apply deterministic transform $T_\theta$ to seed MIDI, verbalize $\theta$ as $e$, store $x^{*} = T_\theta(x)$. Enables note-F1 and exact plan matching.
 
 \paragraph{Constraint gold (planned).}
-For descriptive instructions with many valid outputs, store necessary unit tests (Not that Groove style) without a single $x^\*$. Deferred until unique-gold grader validation completes.
+For descriptive instructions with many valid outputs, store necessary unit tests (Not that Groove style) without a single $x^{*}$. Deferred until unique-gold grader validation completes.
 
 \subsection{MIDI-Reason track}
 
@@ -27,4 +27,4 @@ The plan $p = (\text{op}, \theta)$ is scored with exact match independently from
 
 \subsection{Operator families (v0.1)}
 
-Transpose (non-drum tracks), tempo scale, velocity scale, track mute, and program change. All operators are invertible or programmatically verifiable; no LLM judge is used for headline metrics.
+Transpose (non-drum tracks), tempo scale, velocity scale, track mute, and program change. All operators are programmatically verifiable; no LLM judge is used for headline metrics.

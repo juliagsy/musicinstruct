@@ -14,11 +14,11 @@ with default $\tau = 0.9$.
 \begin{itemize}[leftmargin=*]
 \item \textbf{Validity}: binary MIDI parse check.
 \item \textbf{OverEdit}: symmetric-difference rate on notes outside edit mask $m$, capped at 1.
-\item \textbf{Gold note-F1}: for unique gold, F1 between $\hat{x}$ and $x^\*$ inside $m$.
+\item \textbf{Gold note-F1}: for unique gold, F1 between $\hat{x}$ and $x^{*}$ inside $m$.
 \item \textbf{Plan match}: exact equality on $(\text{op}, \theta)$ for MIDI-Reason.
 \end{itemize}
 
 \paragraph{Predicate examples.}
-Pitch shift checks median pitch delta on masked tracks with greedy onset matching (supports chords and flams); track mute requires peak velocity at or below a threshold (default 1) while keeping note events; tempo scale compares end-time duration ratio; preservation uses exact note-set equality outside the mask, pitch histogram JS divergence, and track-set identity. Tempo edits use a global \texttt{pitches\_unchanged} predicate because timing changes affect all note onsets.
+Pitch shift checks median pitch delta on masked tracks with greedy onset matching (supports chords and flams); track mute requires peak velocity at or below a threshold (default 1) while keeping note timing and pitch fixed; tempo scale compares end-time duration ratio; preservation uses exact note-set equality outside the mask, pitch histogram JS divergence, and track-set identity. Tempo edits use a global \texttt{pitches\_unchanged} predicate because timing changes affect all note onsets.
 
 Human listening tests may calibrate descriptive items later; they are not headline metrics in v0.1.
