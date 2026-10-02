@@ -10,7 +10,7 @@ Colab gives **each notebook its own VM**. Pass artifacts through **Google Drive*
 |------------|----------|
 | `MyDrive/musicinstruct/data/pilot/` | Synthetic pilot dataset (`pilot.jsonl`, 300 items) |
 | `MyDrive/musicinstruct/data/v0.2/` | Real MidiCaps/Lakh dataset (`manifest.jsonl`) |
-| `MyDrive/musicinstruct/midicaps/` | Extracted MidiCaps `lmd_full/` tree (~1.6 GB) |
+| `MyDrive/musicinstruct/midicaps/midicaps.tar.gz` | MidiCaps tarball (~1.6 GB; extract locally — do **not** sync extracted tree) |
 | `MyDrive/musicinstruct/runs/pilot_v1/plan_executor_llama/` | **Pilot** Llama predictions (done — do not rerun) |
 | `MyDrive/musicinstruct/runs/real_v0.2_v1/plan_executor_llama/` | **Real v0.2** Llama predictions |
 | `MyDrive/musicinstruct/runs/<RUN_ID>/baselines/` | Programmatic baseline predictions + report |
@@ -50,5 +50,6 @@ Timing (T4, one session): real v0.2 test ~180 subsampled items → ~2–3 h.
 ## Tips
 
 - Use **`02`** with `RESUME=True` to continue after disconnect (merges into existing `predictions.jsonl`).
-- Reuse MidiCaps on Drive from midi-llm: set `DRIVE_MIDICAPS="/content/drive/MyDrive/midi-llm/midicaps"` in notebook **01**.
+- Reuse MidiCaps tarball from midi-llm: set `DRIVE_MIDICAPS_TAR="/content/drive/MyDrive/midi-llm/midicaps/midicaps.tar.gz"` in notebook **01**.
+- If you previously synced an extracted `lmd_full/` tree to Drive, delete that folder and re-sync the tarball only (~10–25 min vs hours).
 - Set `RUN_BASELINES=True` in **03** once to generate oracle/copy-source/wrong-transform controls for v0.2.
