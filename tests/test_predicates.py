@@ -36,6 +36,27 @@ def test_track_muted_fails_when_track_is_loud(tmp_path: Path) -> None:
     assert not preds[0].passed
 
 
+def test_deleted_muted_notes_fail_preservation_axis(tmp_path: Path) -> None:
+    source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
+    deleted = tmp_path / "deleted.mid"
+    midi = load_midi(source)
+    midi.instruments[0].notes = midi.instruments[0].notes[:1]
+    midi.instruments[0].notes[0].velocity = 1
+    midi.write(str(deleted))
+    preds = evaluate_predicates(
+        [
+            Predicate(name="track_muted", params={"tracks": [0], "max_velocity": 1}),
+            Predicate(name="note_structure_unchanged_except_velocity"),
+        ],
+        str(source),
+        str(deleted),
+        EditMask(tracks=[0], include_drums=True),
+    )
+    assert preds[0].passed
+    assert not preds[1].passed
+    assert "note_count_changed" in preds[1].detail
+
+
 def test_track_muted_checks_track_index_not_identity(tmp_path: Path) -> None:
     source = make_seed_midi(tmp_path / "seed.mid", seed_index=0)
     wrong = tmp_path / "wrong.mid"

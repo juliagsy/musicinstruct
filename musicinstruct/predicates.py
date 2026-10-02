@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .midi import (
+    TIME_EPS,
     NoteEvent,
     extract_notes,
     ioi_sequence,
@@ -30,6 +31,7 @@ KNOWN_PREDICATES = frozenset(
         "ioi_unchanged_outside_mask",
         "track_set_unchanged",
         "pitches_unchanged",
+        "note_structure_unchanged_except_velocity",
     }
 )
 
@@ -243,7 +245,10 @@ def _eval_predicate_loaded(
             )
         failed: list[str] = []
         for track_idx in tracks:
-            peak = max((note.velocity for note in hyp_midi.instruments[track_idx].notes), default=0)
+            peak = max(
+                (note.velocity for note in hyp_midi.instruments[track_idx].notes),
+                default=0,
+            )
             if peak > max_velocity:
                 failed.append(f"loud:track={track_idx}:peak={peak}")
         passed = len(failed) == 0
@@ -339,6 +344,36 @@ def _eval_predicate_loaded(
         hyp = sorted((n.track, n.pitch) for n in hyp_notes)
         passed = src == hyp
         return PredicateResult(name, passed, 1.0 if passed else 0.0, f"pitch_events={len(src)}")
+
+    if name == "note_structure_unchanged_except_velocity":
+        source_structure = sorted(
+            (n.track, n.pitch, n.start, n.end, n.is_drum, n.program)
+            for n in source_notes
+            if note_in_mask(n, mask)
+        )
+        hyp_structure = sorted(
+            (n.track, n.pitch, n.start, n.end, n.is_drum, n.program)
+            for n in hyp_notes
+            if note_in_mask(n, mask)
+        )
+        if len(source_structure) != len(hyp_structure):
+            return _fail(
+                name,
+                f"note_count_changed:src={len(source_structure)}:hyp={len(hyp_structure)}",
+            )
+        passed = all(
+            src[:2] == hyp[:2]
+            and abs(src[2] - hyp[2]) <= TIME_EPS
+            and abs(src[3] - hyp[3]) <= TIME_EPS
+            and src[4:] == hyp[4:]
+            for src, hyp in zip(source_structure, hyp_structure, strict=True)
+        )
+        return PredicateResult(
+            name,
+            passed,
+            1.0 if passed else 0.0,
+            f"note_events={len(source_structure)}",
+        )
 
     return PredicateResult(name, False, 0.0, f"unknown predicate: {name}")
 

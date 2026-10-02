@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -33,11 +34,13 @@ def _relative_midi_path(path: str | None, base_dir: Path) -> str | None:
     if path is None:
         return None
     base = base_dir.resolve()
-    resolved = _resolve_midi_path(path, base_dir)
-    try:
-        return str(resolved.relative_to(base))
-    except ValueError:
-        return str(path)
+    midi_path = Path(path)
+    if midi_path.is_absolute():
+        return os.path.relpath(midi_path.resolve(), base)
+    for candidate in ((base / midi_path).resolve(), (Path.cwd() / midi_path).resolve()):
+        if candidate.is_file():
+            return os.path.relpath(candidate, base)
+    return str(midi_path)
 
 
 def _hypothesis_path(midi_path: str, pred_root: Path) -> str:

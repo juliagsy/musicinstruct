@@ -11,6 +11,14 @@ from .plan_executor import PlanClient, predict_plan_executor
 from .schema import Prediction
 
 
+def _client_config(client: PlanClient) -> dict:
+    config = {"class": type(client).__name__}
+    for name in ("model_id", "device", "max_new_tokens", "temperature"):
+        if hasattr(client, name):
+            config[name] = getattr(client, name)
+    return config
+
+
 def run_plan_executor_suite(
     manifest_path: str | Path,
     client: PlanClient,
@@ -49,6 +57,7 @@ def run_plan_executor_suite(
                 "manifest": str(manifest_path),
                 "split": split,
                 "runner": runner_name,
+                "runner_config": _client_config(client),
                 "error": "no_items_for_split",
             }
         scores = score_records(
@@ -61,6 +70,7 @@ def run_plan_executor_suite(
             "manifest": str(manifest_path),
             "split": split,
             "runner": runner_name,
+            "runner_config": _client_config(client),
             "batch_count": 0,
             "total_predictions": len(existing_predictions),
             "prediction_coverage": scores.get("prediction_coverage", 0.0),
@@ -97,6 +107,7 @@ def run_plan_executor_suite(
         "manifest": str(manifest_path),
         "split": split,
         "runner": runner_name,
+        "runner_config": _client_config(client),
         "batch_count": len(items),
         "total_predictions": len(merged_predictions),
         "split_count": len(split_items),

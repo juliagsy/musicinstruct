@@ -93,6 +93,7 @@ def test_stub_client_achieves_perfect_score_on_test_split(tmp_path: Path) -> Non
         split="test",
     )
     assert summary["overall"]["joint"] == 1.0
+    assert summary["runner_config"]["class"] == "StubPlanClient"
 
 
 def test_predict_plan_executor_records_parse_errors(tmp_path: Path) -> None:

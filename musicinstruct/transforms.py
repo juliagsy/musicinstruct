@@ -126,7 +126,10 @@ def mute_tracks(source: str | Path, destination: str | Path, tracks: list[int]) 
         gold_path=gold_path,
         plan=Plan(op="mute_tracks", params={"tracks": tracks}),
         must_change=[Predicate(name="track_muted", params={"tracks": tracks, "max_velocity": 1})],
-        must_preserve=_default_preserve(),
+        must_preserve=[
+            *_default_preserve(),
+            Predicate(name="note_structure_unchanged_except_velocity"),
+        ],
         edit_mask=EditMask(tracks=tracks, include_drums=True),
     )
 

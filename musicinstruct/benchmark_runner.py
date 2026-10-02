@@ -55,7 +55,7 @@ def run_baseline_suite(
             split=split,
         )
         summary["baselines"][name] = {
-            "predictions": str(pred_path),
+            "predictions": pred_path.name,
             "overall": scores["overall"],
             "by_op_family": scores["by_op_family"],
         }

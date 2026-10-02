@@ -58,6 +58,14 @@ def test_score_records_resolves_cwd_relative_midi_path(tmp_path: Path, monkeypat
     assert results["items"][0]["validity"] == 1.0
 
 
+def test_write_predictions_relativizes_external_midi_path(tmp_path: Path) -> None:
+    midi = make_seed_midi(tmp_path / "data/source.mid", seed_index=0)
+    preds = tmp_path / "results/predictions.jsonl"
+    write_predictions(preds, [Prediction(item_id="x", midi_path=str(midi))])
+    row = __import__("json").loads(preds.read_text())
+    assert row["midi_path"] == "../data/source.mid"
+
+
 def test_missing_prediction_gold_note_f1_counts_as_zero(tmp_path: Path) -> None:
     out = tmp_path / "pilot"
     generate_pilot_dataset(out, target=TARGET_ITEMS)
