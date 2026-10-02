@@ -38,11 +38,22 @@ Each benchmark record is one JSON object per line (JSONL).
 
 Composition IDs use `lmd_<cluster_prefix>` from Lakh/MidiCaps paths. Items set `source="midicaps"` and `license="CC-BY-4.0"`. Splits are assigned at the composition (cluster) level; MidiCaps `test_set` clusters are held out in test only.
 
+Train and validation keep the full operator mix per composition. **Test** is subsampled after generation: at most **6 items per composition**, one random variant per `op_family` (transpose, velocity, tempo, mute, program). Disable with `--test-max-per-composition 0`.
+
 Generate with:
 
 ```bash
-musicinstruct generate-real --lakh-root /path/to/lmd_full --output-dir data/v0.2
+musicinstruct generate-real --lakh-root /path/to/lmd_full --output-dir data/v0.2 \
+  --test-max-per-composition 6 --test-subsample-seed 0
 ```
+
+## Scoring aggregates
+
+`musicinstruct score` reports:
+
+- **`overall`** — item-level micro-average (each test item weighted equally)
+- **`composition_macro`** — mean of per-composition aggregates (each composition weighted equally)
+- **`by_composition`** — per-composition breakdown
 
 ## Predicate names (v1)
 

@@ -26,7 +26,7 @@ musicinstruct generate-pilot --output-dir data/pilot --target 300
 # Generate from filtered MidiCaps/Lakh seeds (requires .[stress] + local lmd_full/)
 pip install -e ".[stress]"
 musicinstruct generate-real --lakh-root /path/to/lmd_full --output-dir data/v0.2 \
-  --target 1000 --seed-limit 500
+  --target 1000 --seed-limit 500 --test-max-per-composition 6
 
 # Validate manifest and MIDI paths
 musicinstruct validate data/pilot/pilot.jsonl
@@ -81,6 +81,10 @@ This validates the grader on real files (transpose + tempo per MIDI). It does **
 | `over_edit` | Symmetric-difference rate on notes outside the edit mask (0--1, capped) |
 | `gold_note_f1` | Note F1 vs gold MIDI on the edit region (`unique` gold) |
 | `plan_match` | Exact match on structured plan (MIDI-Reason) |
+
+Score reports include **`overall`** (item micro-average) and **`composition_macro`** (equal weight per composition). Use composition-macro joint when test items from the same seed are correlated.
+
+Real v0.2 test sets subsample to **≤6 items per composition** (one random variant per operator family). Train/validation keep the full operator mix.
 
 ## v0 scope
 
