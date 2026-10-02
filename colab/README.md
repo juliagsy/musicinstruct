@@ -8,7 +8,9 @@ Colab gives **each notebook its own VM**. Pass artifacts through **Google Drive*
 
 | Drive path | Contents |
 |------------|----------|
-| `MyDrive/musicinstruct/data/pilot/` | Generated pilot dataset (300 items, reusable) |
+| `MyDrive/musicinstruct/data/pilot/` | Synthetic pilot dataset (300 items) |
+| `MyDrive/musicinstruct/data/v0.2/` | Real MidiCaps/Lakh dataset (`manifest.jsonl`) |
+| `MyDrive/musicinstruct/midicaps/` | Extracted MidiCaps `lmd_full/` tree (~1.6 GB) |
 | `MyDrive/musicinstruct/runs/<RUN_ID>/plan_executor_llama/` | Predictions, MIDI outputs, reports |
 | `MyDrive/musicinstruct/runs/<RUN_ID>/baselines/` | Programmatic baseline predictions + report |
 
@@ -24,7 +26,7 @@ Keep **`RUN_ID`** identical across notebooks (default: `pilot_v1`). Local clone 
 
 | Notebook | Purpose |
 |----------|---------|
-| `01_setup_and_data.ipynb` | Clone, install `.[llm]`, generate pilot, validate, self-test, **sync data to Drive** |
+| `01_setup_and_data.ipynb` | Clone, install `.[llm,stress]`, generate pilot or **real v0.2**, validate, self-test, **sync to Drive** |
 | `02_run_plan_executor.ipynb` | Restore data + prior results from Drive, run Llama on test split, **sync results to Drive** |
 | `03_score_and_baselines.ipynb` | Rescore predictions, run programmatic baselines (optional) |
 

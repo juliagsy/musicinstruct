@@ -23,6 +23,11 @@ pip install -e ".[dev]"
 # Generate ~300 synthetic unique-gold items (refuses overwrite unless --force)
 musicinstruct generate-pilot --output-dir data/pilot --target 300
 
+# Generate from filtered MidiCaps/Lakh seeds (requires .[stress] + local lmd_full/)
+pip install -e ".[stress]"
+musicinstruct generate-real --lakh-root /path/to/lmd_full --output-dir data/v0.2 \
+  --target 1000 --seed-limit 500
+
 # Validate manifest and MIDI paths
 musicinstruct validate data/pilot/pilot.jsonl
 

@@ -8,7 +8,7 @@ Each benchmark record is one JSON object per line (JSONL).
 |-------|------|-------------|
 | `item_id` | string | Unique item identifier |
 | `composition_id` | string | Source grouping for split assignment |
-| `gold_mode` | `"unique"` \| `"constraint"` | Unique gold MIDI vs constraint-only (v1 uses `unique`) |
+| `gold_mode` | `"unique"` \| `"constraint"` | Unique gold MIDI vs constraint-only (v0.1 uses `unique`) |
 | `op_family` | string | Operator category (`transpose`, `tempo_scale`, …) |
 | `instruction` | string | Natural-language edit request |
 | `midi_in` | string | Path to source MIDI (relative to manifest directory) |
@@ -32,6 +32,16 @@ Each benchmark record is one JSON object per line (JSONL).
 
 ```json
 {"item_id": "seed_00_transpose_+3_p0", "midi_path": "outputs/model.mid", "plan": {"op": "transpose", "params": {"semitones": 3}}}
+```
+
+## Real seeds (v0.2)
+
+Composition IDs use `lmd_<cluster_prefix>` from Lakh/MidiCaps paths. Items set `source="midicaps"` and `license="CC-BY-4.0"`. Splits are assigned at the composition (cluster) level; MidiCaps `test_set` clusters are held out in test only.
+
+Generate with:
+
+```bash
+musicinstruct generate-real --lakh-root /path/to/lmd_full --output-dir data/v0.2
 ```
 
 ## Predicate names (v1)
