@@ -1,4 +1,4 @@
-"""Synthetic pilot dataset generation (default 300 unique-gold items)."""
+"""Benchmark dataset generation (synthetic pilot and real MidiCaps/Lakh seeds)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,8 @@ import shutil
 from pathlib import Path
 
 from .dataset import save_jsonl
-from .schema import BenchmarkItem
+from .schema import BenchmarkItem, Split
+from .seeds import SeedRecord, filter_midicaps_seeds
 from .transforms import (
     make_seed_midi,
     mute_tracks,
@@ -19,6 +20,7 @@ from .transforms import (
 
 SEED_COUNT = 12
 TARGET_ITEMS = 300
+REAL_TARGET_ITEMS = 1000
 
 TRANSPOSE_SEMITONES = [-7, -5, -3, -2, 2, 3, 5, 7]
 VELOCITY_FACTORS = [0.5, 0.75, 1.25]
@@ -92,6 +94,173 @@ def _copy_seed(source: Path, destination: Path) -> None:
     shutil.copy2(source, destination)
 
 
+def _prepare_output_dir(output_dir: Path, force: bool) -> None:
+    if output_dir.exists() and any(output_dir.iterdir()):
+        if not force:
+            raise OutputDirectoryExistsError(
+                f"{output_dir} already exists; pass force=True or use --force to overwrite"
+            )
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+
+def _build_items_for_composition(
+    *,
+    output_dir: Path,
+    composition_id: str,
+    split: Split,
+    seed_in: Path,
+    source: str,
+    license_tag: str,
+    metadata_base: dict | None = None,
+) -> list[BenchmarkItem]:
+    """Emit unique-gold items for one source MIDI using the v0.1 operator mix."""
+    metadata_base = metadata_base or {}
+    pitched = non_drum_tracks(seed_in)
+    if not pitched:
+        return []
+
+    velocity_track = pitched[0]
+    program_track = pitched[0]
+    items: list[BenchmarkItem] = []
+
+    for semitones in TRANSPOSE_SEMITONES:
+        templates = (
+            TRANSPOSE_TEMPLATES[:2]
+            if semitones > 0
+            else [TRANSPOSE_TEMPLATES[3], TRANSPOSE_TEMPLATES[4]]
+        )
+        for template_idx, template in enumerate(templates):
+            item_id = f"{composition_id}_transpose_{semitones:+d}_p{template_idx}"
+            gold_path = output_dir / "gold" / f"{item_id}.mid"
+            result = transpose(seed_in, gold_path, semitones=semitones, tracks=pitched)
+            instruction = template.format(n=abs(semitones), abs_n=abs(semitones))
+            items.append(
+                BenchmarkItem(
+                    item_id=item_id,
+                    composition_id=composition_id,
+                    gold_mode="unique",
+                    op_family="transpose",
+                    instruction=instruction,
+                    instruction_type="specific",
+                    midi_in=str(seed_in.relative_to(output_dir)),
+                    gold_midi=str(gold_path.relative_to(output_dir)),
+                    plan=result.plan,
+                    must_change=result.must_change,
+                    must_preserve=result.must_preserve,
+                    edit_mask=result.edit_mask,
+                    split=split,
+                    source=source,
+                    license=license_tag,
+                    annotation_status="reviewed",
+                    metadata={**metadata_base, "semitones": semitones, "template_idx": template_idx},
+                )
+            )
+
+    for factor in VELOCITY_FACTORS:
+        item_id = f"{composition_id}_velocity_{factor}"
+        gold_path = output_dir / "gold" / f"{item_id}.mid"
+        tracks = [velocity_track]
+        result = velocity_scale(seed_in, gold_path, factor=factor, tracks=tracks)
+        items.append(
+            BenchmarkItem(
+                item_id=item_id,
+                composition_id=composition_id,
+                gold_mode="unique",
+                op_family="velocity_scale",
+                instruction=VELOCITY_TEMPLATE.format(tracks=tracks, factor=factor),
+                midi_in=str(seed_in.relative_to(output_dir)),
+                gold_midi=str(gold_path.relative_to(output_dir)),
+                plan=result.plan,
+                must_change=result.must_change,
+                must_preserve=result.must_preserve,
+                edit_mask=result.edit_mask,
+                split=split,
+                source=source,
+                license=license_tag,
+                annotation_status="reviewed",
+                metadata={**metadata_base, "factor": factor},
+            )
+        )
+
+    for factor in TEMPO_FACTORS:
+        item_id = f"{composition_id}_tempo_{factor}"
+        gold_path = output_dir / "gold" / f"{item_id}.mid"
+        result = tempo_scale(seed_in, gold_path, factor=factor)
+        items.append(
+            BenchmarkItem(
+                item_id=item_id,
+                composition_id=composition_id,
+                gold_mode="unique",
+                op_family="tempo_scale",
+                instruction=TEMPO_TEMPLATE.format(factor=factor),
+                midi_in=str(seed_in.relative_to(output_dir)),
+                gold_midi=str(gold_path.relative_to(output_dir)),
+                plan=result.plan,
+                must_change=result.must_change,
+                must_preserve=result.must_preserve,
+                edit_mask=result.edit_mask,
+                split=split,
+                source=source,
+                license=license_tag,
+                annotation_status="reviewed",
+                metadata={**metadata_base, "factor": factor},
+            )
+        )
+
+    for track in pitched[:2]:
+        item_id = f"{composition_id}_mute_{track}"
+        gold_path = output_dir / "gold" / f"{item_id}.mid"
+        result = mute_tracks(seed_in, gold_path, tracks=[track])
+        items.append(
+            BenchmarkItem(
+                item_id=item_id,
+                composition_id=composition_id,
+                gold_mode="unique",
+                op_family="mute_tracks",
+                instruction=MUTE_TEMPLATE.format(tracks=[track]),
+                midi_in=str(seed_in.relative_to(output_dir)),
+                gold_midi=str(gold_path.relative_to(output_dir)),
+                plan=result.plan,
+                must_change=result.must_change,
+                must_preserve=result.must_preserve,
+                edit_mask=result.edit_mask,
+                split=split,
+                source=source,
+                license=license_tag,
+                annotation_status="reviewed",
+                metadata={**metadata_base, "tracks": [track]},
+            )
+        )
+
+    for program in PROGRAMS:
+        item_id = f"{composition_id}_program_{program}"
+        gold_path = output_dir / "gold" / f"{item_id}.mid"
+        result = program_change(seed_in, gold_path, track=program_track, program=program)
+        items.append(
+            BenchmarkItem(
+                item_id=item_id,
+                composition_id=composition_id,
+                gold_mode="unique",
+                op_family="program_change",
+                instruction=PROGRAM_TEMPLATE.format(track=program_track, program=program),
+                midi_in=str(seed_in.relative_to(output_dir)),
+                gold_midi=str(gold_path.relative_to(output_dir)),
+                plan=result.plan,
+                must_change=result.must_change,
+                must_preserve=result.must_preserve,
+                edit_mask=result.edit_mask,
+                split=split,
+                source=source,
+                license=license_tag,
+                annotation_status="reviewed",
+                metadata={**metadata_base, "program": program},
+            )
+        )
+
+    return items
+
+
 def build_seeds(output_dir: Path) -> list[Path]:
     seed_dir = output_dir / "seeds"
     seed_dir.mkdir(parents=True, exist_ok=True)
@@ -99,7 +268,7 @@ def build_seeds(output_dir: Path) -> list[Path]:
 
 
 class OutputDirectoryExistsError(FileExistsError):
-    """Raised when generate-pilot would overwrite an existing output directory."""
+    """Raised when generation would overwrite an existing output directory."""
 
 
 def generate_pilot_dataset(
@@ -108,13 +277,7 @@ def generate_pilot_dataset(
     force: bool = False,
 ) -> list[BenchmarkItem]:
     output_dir = Path(output_dir)
-    if output_dir.exists() and any(output_dir.iterdir()):
-        if not force:
-            raise OutputDirectoryExistsError(
-                f"{output_dir} already exists; pass force=True or use --force to overwrite"
-            )
-        shutil.rmtree(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    _prepare_output_dir(output_dir, force)
 
     seeds = build_seeds(output_dir)
     items: list[BenchmarkItem] = []
@@ -124,132 +287,16 @@ def generate_pilot_dataset(
         split = _split_for_seed(seed_index)
         seed_in = output_dir / "midi_in" / composition_id / "source.mid"
         _copy_seed(seed_path, seed_in)
-        pitched = non_drum_tracks(seed_in)
-
-        for semitones in TRANSPOSE_SEMITONES:
-            templates = (
-                TRANSPOSE_TEMPLATES[:2]
-                if semitones > 0
-                else [TRANSPOSE_TEMPLATES[3], TRANSPOSE_TEMPLATES[4]]
+        items.extend(
+            _build_items_for_composition(
+                output_dir=output_dir,
+                composition_id=composition_id,
+                split=split,
+                seed_in=seed_in,
+                source="synthetic",
+                license_tag="CC0-1.0",
             )
-            for template_idx, template in enumerate(templates):
-                item_id = f"{composition_id}_transpose_{semitones:+d}_p{template_idx}"
-                gold_path = output_dir / "gold" / f"{item_id}.mid"
-                result = transpose(seed_in, gold_path, semitones=semitones, tracks=pitched)
-                instruction = template.format(n=abs(semitones), abs_n=abs(semitones))
-                items.append(
-                    BenchmarkItem(
-                        item_id=item_id,
-                        composition_id=composition_id,
-                        gold_mode="unique",
-                        op_family="transpose",
-                        instruction=instruction,
-                        instruction_type="specific",
-                        midi_in=str(seed_in.relative_to(output_dir)),
-                        gold_midi=str(gold_path.relative_to(output_dir)),
-                        plan=result.plan,
-                        must_change=result.must_change,
-                        must_preserve=result.must_preserve,
-                        edit_mask=result.edit_mask,
-                        split=split,
-                        annotation_status="reviewed",
-                        metadata={"semitones": semitones, "template_idx": template_idx},
-                    )
-                )
-
-        for factor in VELOCITY_FACTORS:
-            item_id = f"{composition_id}_velocity_{factor}"
-            gold_path = output_dir / "gold" / f"{item_id}.mid"
-            tracks = [0]
-            result = velocity_scale(seed_in, gold_path, factor=factor, tracks=tracks)
-            items.append(
-                BenchmarkItem(
-                    item_id=item_id,
-                    composition_id=composition_id,
-                    gold_mode="unique",
-                    op_family="velocity_scale",
-                    instruction=VELOCITY_TEMPLATE.format(tracks=tracks, factor=factor),
-                    midi_in=str(seed_in.relative_to(output_dir)),
-                    gold_midi=str(gold_path.relative_to(output_dir)),
-                    plan=result.plan,
-                    must_change=result.must_change,
-                    must_preserve=result.must_preserve,
-                    edit_mask=result.edit_mask,
-                    split=split,
-                    annotation_status="reviewed",
-                    metadata={"factor": factor},
-                )
-            )
-
-        for factor in TEMPO_FACTORS:
-            item_id = f"{composition_id}_tempo_{factor}"
-            gold_path = output_dir / "gold" / f"{item_id}.mid"
-            result = tempo_scale(seed_in, gold_path, factor=factor)
-            items.append(
-                BenchmarkItem(
-                    item_id=item_id,
-                    composition_id=composition_id,
-                    gold_mode="unique",
-                    op_family="tempo_scale",
-                    instruction=TEMPO_TEMPLATE.format(factor=factor),
-                    midi_in=str(seed_in.relative_to(output_dir)),
-                    gold_midi=str(gold_path.relative_to(output_dir)),
-                    plan=result.plan,
-                    must_change=result.must_change,
-                    must_preserve=result.must_preserve,
-                    edit_mask=result.edit_mask,
-                    split=split,
-                    annotation_status="reviewed",
-                    metadata={"factor": factor},
-                )
-            )
-
-        for track in pitched[:2]:
-            item_id = f"{composition_id}_mute_{track}"
-            gold_path = output_dir / "gold" / f"{item_id}.mid"
-            result = mute_tracks(seed_in, gold_path, tracks=[track])
-            items.append(
-                BenchmarkItem(
-                    item_id=item_id,
-                    composition_id=composition_id,
-                    gold_mode="unique",
-                    op_family="mute_tracks",
-                    instruction=MUTE_TEMPLATE.format(tracks=[track]),
-                    midi_in=str(seed_in.relative_to(output_dir)),
-                    gold_midi=str(gold_path.relative_to(output_dir)),
-                    plan=result.plan,
-                    must_change=result.must_change,
-                    must_preserve=result.must_preserve,
-                    edit_mask=result.edit_mask,
-                    split=split,
-                    annotation_status="reviewed",
-                    metadata={"tracks": [track]},
-                )
-            )
-
-        for program in PROGRAMS:
-            track = 0
-            item_id = f"{composition_id}_program_{program}"
-            gold_path = output_dir / "gold" / f"{item_id}.mid"
-            result = program_change(seed_in, gold_path, track=track, program=program)
-            items.append(
-                BenchmarkItem(
-                    item_id=item_id,
-                    composition_id=composition_id,
-                    gold_mode="unique",
-                    op_family="program_change",
-                    instruction=PROGRAM_TEMPLATE.format(track=track, program=program),
-                    midi_in=str(seed_in.relative_to(output_dir)),
-                    gold_midi=str(gold_path.relative_to(output_dir)),
-                    plan=result.plan,
-                    must_change=result.must_change,
-                    must_preserve=result.must_preserve,
-                    edit_mask=result.edit_mask,
-                    split=split,
-                    annotation_status="reviewed",
-                    metadata={"program": program},
-                )
-            )
+        )
 
     items.sort(key=lambda item: item.item_id)
     if len(items) > target:
@@ -258,3 +305,84 @@ def generate_pilot_dataset(
     manifest = output_dir / "pilot.jsonl"
     save_jsonl(manifest, items)
     return items
+
+
+def generate_real_dataset(
+    output_dir: str | Path,
+    seeds: list[SeedRecord],
+    *,
+    target: int = REAL_TARGET_ITEMS,
+    force: bool = False,
+    manifest_name: str = "manifest.jsonl",
+) -> list[BenchmarkItem]:
+    """Generate unique-gold items from filtered real MIDI seeds."""
+    if not seeds:
+        raise ValueError("no seeds provided for real dataset generation")
+
+    output_dir = Path(output_dir)
+    _prepare_output_dir(output_dir, force)
+
+    items: list[BenchmarkItem] = []
+    for seed in seeds:
+        seed_in = output_dir / "midi_in" / seed.composition_id / "source.mid"
+        _copy_seed(seed.source_path, seed_in)
+        metadata_base = {
+            "origin": str(seed.source_path),
+            "cluster_id": seed.cluster_id,
+        }
+        if seed.location:
+            metadata_base["midicaps_location"] = seed.location
+        if seed.caption:
+            metadata_base["midicaps_caption"] = seed.caption
+        if seed.midicaps_test_set:
+            metadata_base["midicaps_test_set"] = True
+
+        items.extend(
+            _build_items_for_composition(
+                output_dir=output_dir,
+                composition_id=seed.composition_id,
+                split=seed.split,
+                seed_in=seed_in,
+                source="midicaps",
+                license_tag="CC-BY-4.0",
+                metadata_base=metadata_base,
+            )
+        )
+
+    items.sort(key=lambda item: item.item_id)
+    if len(items) > target:
+        items = _trim_to_target(items, target)
+
+    manifest = output_dir / manifest_name
+    save_jsonl(manifest, items)
+    return items
+
+
+def generate_real_from_midicaps(
+    output_dir: str | Path,
+    lakh_root: str | Path,
+    *,
+    target: int = REAL_TARGET_ITEMS,
+    seed_limit: int = 500,
+    midicaps_limit: int = 5000,
+    force: bool = False,
+    manifest_name: str = "manifest.jsonl",
+) -> tuple[list[BenchmarkItem], list[SeedRecord]]:
+    """Discover MidiCaps/Lakh seeds and generate a real-MIDI benchmark manifest."""
+    seeds = filter_midicaps_seeds(
+        lakh_root,
+        seed_limit=seed_limit,
+        midicaps_limit=midicaps_limit,
+    )
+    if not seeds:
+        raise RuntimeError(
+            "no MidiCaps seeds passed filters; check --lakh-root and midicaps/lakh paths"
+        )
+    items = generate_real_dataset(
+        output_dir,
+        seeds,
+        target=target,
+        force=force,
+        manifest_name=manifest_name,
+    )
+    return items, seeds
