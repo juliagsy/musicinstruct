@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 import shutil
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from .transforms import (
 SEED_COUNT = 12
 TARGET_ITEMS = 300
 REAL_TARGET_ITEMS = 1000
+DEFAULT_TEST_MAX_PER_COMPOSITION = 6
 
 TRANSPOSE_SEMITONES = [-7, -5, -3, -2, 2, 3, 5, 7]
 VELOCITY_FACTORS = [0.5, 0.75, 1.25]
@@ -70,6 +72,46 @@ def _trim_items_by_op_family(items: list[BenchmarkItem], target: int) -> list[Be
             remaining -= take
         trimmed.extend(bucket[:take])
     return sorted(trimmed, key=lambda item: item.item_id)[:target]
+
+
+def subsample_test_items(
+    items: list[BenchmarkItem],
+    *,
+    max_per_composition: int = DEFAULT_TEST_MAX_PER_COMPOSITION,
+    seed: int = 0,
+) -> list[BenchmarkItem]:
+    """Keep train/validation intact; cap test to one random item per op_family per composition."""
+    if max_per_composition <= 0:
+        return items
+
+    rng = random.Random(seed)
+    train_val = [item for item in items if item.split != "test"]
+    test_items = [item for item in items if item.split == "test"]
+    if not test_items:
+        return items
+
+    by_composition: dict[str, list[BenchmarkItem]] = {}
+    for item in test_items:
+        by_composition.setdefault(item.composition_id, []).append(item)
+
+    subsampled_test: list[BenchmarkItem] = []
+    for composition_id in sorted(by_composition):
+        comp_items = by_composition[composition_id]
+        by_op: dict[str, list[BenchmarkItem]] = {}
+        for item in comp_items:
+            by_op.setdefault(item.op_family, []).append(item)
+
+        selected: list[BenchmarkItem] = []
+        op_names = sorted(by_op)
+        rng.shuffle(op_names)
+        for op in op_names:
+            if len(selected) >= max_per_composition:
+                break
+            bucket = sorted(by_op[op], key=lambda item: item.item_id)
+            selected.append(rng.choice(bucket))
+        subsampled_test.extend(selected)
+
+    return sorted(train_val + subsampled_test, key=lambda item: item.item_id)
 
 
 def _trim_to_target(items: list[BenchmarkItem], target: int) -> list[BenchmarkItem]:
@@ -314,6 +356,8 @@ def generate_real_dataset(
     target: int = REAL_TARGET_ITEMS,
     force: bool = False,
     manifest_name: str = "manifest.jsonl",
+    test_max_per_composition: int | None = DEFAULT_TEST_MAX_PER_COMPOSITION,
+    test_subsample_seed: int = 0,
 ) -> list[BenchmarkItem]:
     """Generate unique-gold items from filtered real MIDI seeds."""
     if not seeds:
@@ -352,6 +396,12 @@ def generate_real_dataset(
     items.sort(key=lambda item: item.item_id)
     if len(items) > target:
         items = _trim_to_target(items, target)
+    if test_max_per_composition is not None:
+        items = subsample_test_items(
+            items,
+            max_per_composition=test_max_per_composition,
+            seed=test_subsample_seed,
+        )
 
     manifest = output_dir / manifest_name
     save_jsonl(manifest, items)
@@ -367,6 +417,8 @@ def generate_real_from_midicaps(
     midicaps_limit: int = 5000,
     force: bool = False,
     manifest_name: str = "manifest.jsonl",
+    test_max_per_composition: int | None = DEFAULT_TEST_MAX_PER_COMPOSITION,
+    test_subsample_seed: int = 0,
 ) -> tuple[list[BenchmarkItem], list[SeedRecord]]:
     """Discover MidiCaps/Lakh seeds and generate a real-MIDI benchmark manifest."""
     seeds = filter_midicaps_seeds(
@@ -384,5 +436,7 @@ def generate_real_from_midicaps(
         target=target,
         force=force,
         manifest_name=manifest_name,
+        test_max_per_composition=test_max_per_composition,
+        test_subsample_seed=test_subsample_seed,
     )
     return items, seeds
