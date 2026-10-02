@@ -428,7 +428,8 @@ def generate_real_from_midicaps(
     )
     if not seeds:
         raise RuntimeError(
-            "no MidiCaps seeds passed filters; check --lakh-root and midicaps/lakh paths"
+            "no MidiCaps seeds passed filters; check --lakh-root (lmd_full/ or parent),"
+            " extraction, and seed filter thresholds (tracks/bars/notes)"
         )
     items = generate_real_dataset(
         output_dir,

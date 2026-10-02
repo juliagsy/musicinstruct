@@ -108,6 +108,30 @@ def assign_split(
     return "test"
 
 
+def resolve_lakh_midi_path(lakh_root: str | Path, location: str) -> Path | None:
+    """Resolve a MidiCaps location against a local Lakh tree.
+
+    ``lakh_root`` may be either the ``lmd_full/`` directory or its parent extract
+    root (as in the MidiCaps tarball). ``location`` values typically look like
+    ``lmd_full/0/<hash>.mid``.
+    """
+    root = Path(lakh_root)
+    ref = Path(location)
+    candidates = [
+        root / ref,
+        root / ref.name,
+        root / "lmd_full" / ref,
+    ]
+    if location.startswith("lmd_full/"):
+        candidates.append(root / location.removeprefix("lmd_full/"))
+    if len(ref.parts) >= 2:
+        candidates.append(root / ref.parts[-2] / ref.name)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
 def resolve_midicaps_paths(
     lakh_root: str | Path,
     *,
@@ -125,18 +149,20 @@ def resolve_midicaps_paths(
     lakh_root = Path(lakh_root)
     dataset = load_dataset("amaai-lab/MidiCaps", split="train")
     rows: list[dict] = []
+    scanned = 0
     for row in dataset:
+        scanned += 1
         if test_set_only and not row.get("test_set", False):
             continue
         location = row.get("location")
         if not location:
             continue
-        candidate = lakh_root / str(location)
-        if not candidate.is_file():
+        candidate = resolve_lakh_midi_path(lakh_root, str(location))
+        if candidate is None:
             continue
         rows.append(
             {
-                "path": candidate.resolve(),
+                "path": candidate,
                 "location": str(location),
                 "caption": row.get("caption") or row.get("text") or row.get("description"),
                 "test_set": bool(row.get("test_set", False)),
@@ -144,6 +170,21 @@ def resolve_midicaps_paths(
         )
         if len(rows) >= limit:
             break
+    if scanned and not rows and lakh_root.is_dir():
+        sample = next(
+            (str(row.get("location")) for row in dataset if row.get("location")),
+            None,
+        )
+        probe = resolve_lakh_midi_path(lakh_root, sample) if sample else None
+        hint = (
+            f" scanned {scanned} MidiCaps rows, 0 paths resolved under {lakh_root}"
+            f"; sample location={sample!r} -> {probe}"
+        )
+        raise RuntimeError(
+            "No MidiCaps MIDI files found on disk."
+            f"{hint}. Ensure midicaps.tar.gz is extracted and --lakh-root points at"
+            " lmd_full/ (or its parent extract directory)."
+        )
     return rows
 
 

@@ -9,6 +9,7 @@ from musicinstruct.seeds import (
     composition_id_from_cluster,
     filter_midicaps_seeds,
     passes_seed_filter,
+    resolve_lakh_midi_path,
 )
 from musicinstruct.transforms import make_seed_midi
 
@@ -44,6 +45,29 @@ def test_passes_seed_filter_rejects_empty(tmp_path: Path) -> None:
     empty.write_bytes(b"not midi")
     ok, _reason = passes_seed_filter(empty)
     assert not ok
+
+
+def test_resolve_lakh_midi_path_accepts_lmd_full_root(tmp_path: Path) -> None:
+    cluster = "000abc123def456789012345678901234567890"
+    midi = make_seed_midi(tmp_path / "seed.mid", seed_index=0, bars=16)
+    lmd_full = tmp_path / "lmd_full" / "0"
+    lmd_full.mkdir(parents=True)
+    target = lmd_full / f"{cluster}.mid"
+    target.write_bytes(midi.read_bytes())
+
+    resolved = resolve_lakh_midi_path(tmp_path / "lmd_full", f"lmd_full/0/{cluster}.mid")
+    assert resolved == target.resolve()
+
+
+def test_resolve_lakh_midi_path_accepts_extract_root(tmp_path: Path) -> None:
+    cluster = "000abc123def456789012345678901234567890"
+    midi = make_seed_midi(tmp_path / "seed.mid", seed_index=1, bars=16)
+    target = tmp_path / "lmd_full" / "1" / f"{cluster}.mid"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(midi.read_bytes())
+
+    resolved = resolve_lakh_midi_path(tmp_path, f"lmd_full/1/{cluster}.mid")
+    assert resolved == target.resolve()
 
 
 def test_filter_midicaps_seeds_deduplicates_clusters(
