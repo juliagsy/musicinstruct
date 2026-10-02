@@ -2,9 +2,8 @@ from pathlib import Path
 
 from musicinstruct.dataset import save_jsonl, validate_dataset
 from musicinstruct.evaluation import gold_predictions, score_records, write_predictions
-from musicinstruct.schema import Prediction
 from musicinstruct.generate import TARGET_ITEMS, generate_pilot_dataset
-from musicinstruct.schema import BenchmarkItem
+from musicinstruct.schema import BenchmarkItem, Prediction
 from musicinstruct.transforms import make_seed_midi, transpose
 
 
@@ -34,7 +33,7 @@ def test_score_records_resolves_cwd_relative_midi_path(tmp_path: Path, monkeypat
     generate_pilot_dataset(out, target=300)
     manifest = out / "pilot.jsonl"
     item = next(i for i in __import__("musicinstruct.dataset", fromlist=["load_jsonl"]).load_jsonl(manifest) if i.split == "test")
-    from musicinstruct.dataset import load_jsonl, resolve_item_paths
+    from musicinstruct.dataset import resolve_item_paths
 
     item = resolve_item_paths(item, out)
     preds_dir = tmp_path / "results"
