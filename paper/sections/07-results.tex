@@ -1,10 +1,36 @@
 \section{Results}
 
-\subsection{Overall comparison}
+\subsection{Overall comparison (v0.2 real MIDI)}
 
-Table~\ref{tab:overall-results} reports test-set results. The oracle reaches a joint pass rate of 1.0, confirming that the generated references satisfy every edit and preservation predicate. Neither copying the source nor applying a deliberately wrong transform passes any item jointly, even though both produce valid MIDI and satisfy most declared preservation predicates. This separation is intentional: preservation alone is insufficient when the requested edit is absent or incorrect.
+Table~\ref{tab:overall-results} reports all systems on the v0.2 test split: 180 items from 45 MidiCaps/Lakh compositions, subsampled to four operator families per composition. The oracle---which emits reference gold MIDI and plans---reaches joint pass rate 0.933 with validity 1.0. The gap below 1.0 reflects predicate edge cases on diverse real files (e.g., tempo estimation on rubato sources and preservation checks after program change), not model error; the synthetic pilot oracle reaches joint 1.0 (Table~\ref{tab:control-results}). Copy source attains perfect \preserve{} but joint 0.022: four program-change items receive accidental partial edit credit when the unchanged source already satisfies a predicate. Wrong transform produces valid MIDI with mean \edit{} 0.163 and \preserve{} 0.925 but zero joint passes. No output scores zero across all axes.
 
-The Llama plan-then-execute baseline obtains a joint pass rate of 0.44 (22 of 50 items). Its mean \edit{} is 0.467 and mean \preserve{} is 0.693. Only 72\% of its predictions yield an executable, parseable MIDI file; failed plan generation is scored as an invalid output rather than omitted. Exact plan match is 0.20, showing that successful file-level edits do not imply exact recovery of the benchmark's canonical plan parameters.
+The Llama plan-then-execute baseline obtains joint pass rate 0.589 (106 of 180 items). Mean \edit{} is 0.633 and mean \preserve{} is 0.658. Validity is 0.744: 46 items (25.6\%) produce no executable MIDI, scored as invalid rather than omitted. Exact plan match is 0.622. Composition-macro joint equals the item micro-average (0.589) because every test composition contributes exactly four equally weighted items. Llama therefore exceeds copy source and wrong transform on \edit{} and joint, but remains far below oracle and still loses roughly one quarter of items to invalid structured output.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+System & Valid & \edit{} & \preserve{} & Joint & OverEdit & Plan \\
+\midrule
+Oracle & 1.000 & 1.000 & 0.980 & 0.933 & 0.003 & 1.000 \\
+Copy source & 1.000 & 0.189 & 1.000 & 0.022 & 0.000 & 0.000 \\
+Wrong transform & 1.000 & 0.163 & 0.925 & 0.000 & 0.158 & 0.000 \\
+No output & 0.000 & 0.000 & 0.000 & 0.000 & 1.000 & 0.000 \\
+\midrule
+Llama-3.2-1B & 0.744 & 0.633 & 0.658 & 0.589 & 0.340 & 0.622 \\
+\bottomrule
+\end{tabular}
+\caption{Test results on v0.2 real MIDI ($n{=}180$, 45 compositions). ``Plan'' is exact structured-plan match. Gold note-F1 is 1.000 for oracle, 0.250 for copy source, 0.251 for wrong transform, 0 for no output, and 0.628 for Llama-3.2-1B.}
+\label{tab:overall-results}
+\end{table}
+
+For reference, the same Llama runner on the synthetic pilot test split (128-token cap) reached joint 0.440, \edit{} 0.467, \preserve{} 0.693, and plan match 0.200---lower plan accuracy but similar preservation, suggesting that real MIDI complexity primarily stresses structured output formation rather than note retention.
+
+\subsection{Synthetic pilot controls}
+
+Table~\ref{tab:control-results} confirms metric boundaries on the v0.1 pilot (50 items, two compositions). Oracle joint is 1.0; copy source and wrong transform both reach joint 0 while remaining valid MIDI. These numbers validate the harness before scaling to real seeds.
 
 \begin{table}[t]
 \centering
@@ -18,17 +44,15 @@ Oracle & 1.000 & 1.000 & 1.000 & 1.000 & 0.000 & 1.000 \\
 Copy source & 1.000 & 0.112 & 1.000 & 0.000 & 0.000 & 0.000 \\
 Wrong transform & 1.000 & 0.332 & 0.973 & 0.000 & 0.061 & 0.000 \\
 No output & 0.000 & 0.000 & 0.000 & 0.000 & 1.000 & 0.000 \\
-\midrule
-Llama-3.2-1B & 0.720 & 0.467 & 0.693 & 0.440 & 0.320 & 0.200 \\
 \bottomrule
 \end{tabular}
-\caption{Test results on 50 items. ``Plan'' is exact structured-plan match. Gold note-F1 equals 1.000 for the oracle, 0.160 for copy source, 0.161 for wrong transform, 0 for no output, and 0.440 for Llama-3.2-1B.}
-\label{tab:overall-results}
+\caption{Programmatic controls on the v0.1 pilot test split ($n{=}50$). Gold note-F1 is 1.000 for oracle, 0.160 for copy source, 0.161 for wrong transform, and 0 for no output.}
+\label{tab:control-results}
 \end{table}
 
 \subsection{Performance by operation}
 
-Performance varies sharply by operator family (Table~\ref{tab:operator-results}). Track muting and tempo scaling are solved perfectly, including exact plans. Transposition reaches 0.429 joint: all completed positive shifts of $+2$, $+5$, and $+7$ semitones pass, while negative instructions are emitted as positive shifts and all $\pm3$ cases fail during plan generation. Velocity scaling preserves the source but does not make the requested change, resulting in partial predicate credit but no joint passes. Program changes are the hardest family: none passes, and six of eight do not produce a valid output.
+Performance varies sharply by operator family for Llama on v0.2 (Table~\ref{tab:operator-results}). Tempo scaling is solved perfectly (45/45 joint). Track muting reaches 0.889 joint with full validity. Program change remains difficult: joint 0.222 and validity 0.733, with many responses mapping General MIDI program numbers to transpose plans. Transposition is the weakest family: joint 0.244 and validity 0.244, driven by truncated JSON, hallucinated track lists, and out-of-range track indices on short real files.
 
 \begin{table}[t]
 \centering
@@ -38,38 +62,37 @@ Performance varies sharply by operator family (Table~\ref{tab:operator-results})
 \toprule
 Operation & $n$ & Valid & \edit{} & \preserve{} & Joint & Plan \\
 \midrule
-Mute tracks & 4 & 1.000 & 1.000 & 1.000 & 1.000 & 1.000 \\
-Tempo scale & 6 & 1.000 & 1.000 & 1.000 & 1.000 & 1.000 \\
-Transpose & 28 & 0.714 & 0.429 & 0.714 & 0.429 & 0.000 \\
-Velocity scale & 4 & 1.000 & 0.333 & 1.000 & 0.000 & 0.000 \\
-Program change & 8 & 0.250 & 0.000 & 0.083 & 0.000 & 0.000 \\
+Tempo scale & 45 & 1.000 & 0.998 & 1.000 & 1.000 & 1.000 \\
+Mute tracks & 45 & 1.000 & 1.000 & 0.972 & 0.889 & 1.000 \\
+Program change & 45 & 0.733 & 0.289 & 0.415 & 0.222 & 0.267 \\
+Transpose & 45 & 0.244 & 0.244 & 0.244 & 0.244 & 0.222 \\
 \bottomrule
 \end{tabular}
-\caption{Llama-3.2-1B results by operator family. Values are macro-averages over items; the joint column is a pass rate.}
+\caption{Llama-3.2-1B on v0.2 test, by operator family. Values are macro-averages over items; the joint column is a pass rate.}
 \label{tab:operator-results}
 \end{table}
 
 \subsection{Failure analysis}
 
-Fourteen predictions produce no MIDI: 11 responses do not contain a complete parseable plan under the 128-token generation cap, and three reference an out-of-range track. The incomplete responses often begin an excessively long track list, indicating a formatting failure rather than a MIDI parser failure. Among the 36 executable outputs, the main semantic errors are sign reversal for downward transposition, mapping velocity scaling to a zero-semitone transpose, and interpreting General MIDI program numbers as transpose intervals. These errors expose three distinct bottlenecks that a single accuracy number would merge: structured-plan formation, safe execution, and preservation of unrelated content.
+Forty-six Llama predictions produce no MIDI on v0.2. Thirty-eight responses fail JSON parsing under the 256-token cap (\texttt{no\_plan\_returned}): many begin valid transpose objects but truncate mid-\texttt{tracks} array, while program-change items sometimes emit unbounded enumerations of track indices. Eight additional failures reference out-of-range tracks (e.g., track~25 on two-track files), often from mapping program~25 to a transpose interval. Among the 134 executable outputs, semantic errors include wrong operator choice (transpose instead of \texttt{program\_change}), default program~0 instead of the requested patch, and correct semitone counts with excess tracks that still pass or fail depending on drum masking.
 
-The comparison also illustrates why both axes are needed. Copy source attains perfect \preserve{} but zero joint, while the model's invalid or misdirected edits lower preservation to 0.693 and raise OverEdit to 0.320. Copy source nevertheless receives gold note-F1 of 0.16 because note events are unchanged by program-change references; the dedicated \texttt{program\_is} predicate correctly assigns zero edit success. Thus note-F1 is useful only as a supplementary, operation-dependent diagnostic. Conversely, strict plan match can be lower than file-level success: 12 of 28 transpose items pass jointly but have plan match 0.0 because the model lists drum track~2 in \texttt{tracks} while gold plans target only non-drum tracks $[0,1]$. Execution still satisfies pitch-shift predicates because drums are masked. File-level predicates therefore remain the primary task metric, with MIDI-Reason reported as a diagnostic track.
+The comparison illustrates why both axes are needed. Copy source on v0.2 attains perfect \preserve{} but near-zero joint (Table~\ref{tab:overall-results}), while the model's invalid or misdirected edits lower preservation to 0.658 and raise OverEdit to 0.340. Wrong transform stays at joint 0 despite partial edit and preservation credit, separating ``some change occurred'' from ``the requested edit succeeded under both axes.'' File-level predicates therefore remain the primary task metric, with MIDI-Reason reported as a diagnostic track.
 
 \begin{table}[t]
 \centering
 \small
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{p{0.17\linewidth}p{0.22\linewidth}p{0.52\linewidth}}
+\begin{tabular}{p{0.22\linewidth}p{0.18\linewidth}p{0.52\linewidth}}
 \toprule
 Item & Error & Model output (truncated) \\
 \midrule
-\texttt{seed\_10\_program\_25} & out-of-range track & \texttt{\{"op": "transpose", "semitones": 5, "tracks": [0,2,3]\}} \\
-\texttt{seed\_10\_transpose\_+3\_p0} & incomplete plan & \texttt{\{"op": "transpose", "semitones": 3, "tracks": [0..35, ...\}} \\
-\texttt{seed\_10\_transpose\_-2\_p0} & sign reversal & \texttt{\{"op": "transpose", "semitones": 2, ...\}} (expected $-2$) \\
-\texttt{seed\_10\_velocity\_0.5} & wrong operator & \texttt{\{"op": "transpose", "semitones": 0, ...\}} \\
-\texttt{seed\_11\_program\_48} & wrong parameter & \texttt{program=0} (expected 48) \\
+\texttt{lmd\_102e25e43182\_transpose\_+2\_p0} & incomplete plan & \texttt{\{"op": "transpose", "params": \{"semitones": 2, "tracks": [0, 1]\}} \\
+\texttt{lmd\_1050c7d96755\_program\_25} & wrong operator & \texttt{\{"op": "transpose", "semitones": 3, "tracks": [0,\ldots,77\}} \\
+\texttt{lmd\_10c5d4f0b380\_program\_25} & out-of-range track & \texttt{\{"op": "transpose", "semitones": 5, "tracks": [0, 25]\}} \\
+\texttt{lmd\_101e596be372\_program\_25} & wrong parameter & \texttt{program=0} (expected 25) \\
+\texttt{lmd\_109e47546f64\_transpose\_+2\_p1} & out-of-range track & \texttt{\{"op": "transpose", "semitones": 2, "tracks": [0,1,2,3,4]\}} \\
 \bottomrule
 \end{tabular}
-\caption{Representative Llama-3.2-1B failure modes on the test split.}
+\caption{Representative Llama-3.2-1B failure modes on the v0.2 test split.}
 \label{tab:failure-examples}
 \end{table}

@@ -15,8 +15,8 @@ Each benchmark item stores:
 
 \subsection{Gold modes}
 
-\paragraph{Unique gold (v0.1).}
-Apply deterministic transform $T_\theta$ to seed MIDI, verbalize $\theta$ as $e$, store $x^{*} = T_\theta(x)$. Enables note-F1 and exact plan matching.
+\paragraph{Unique gold (v0.1--v0.2).}
+Apply deterministic transform $T_\theta$ to seed MIDI, verbalize $\theta$ as $e$, store $x^{*} = T_\theta(x)$. Enables note-F1 and exact plan matching. v0.1 uses programmatic seeds; v0.2 applies the same transforms to filtered real MIDI.
 
 \paragraph{Constraint gold (planned).}
 For descriptive instructions with many valid outputs, store necessary unit tests (Not that Groove style) without a single $x^{*}$. Deferred until unique-gold grader validation completes.

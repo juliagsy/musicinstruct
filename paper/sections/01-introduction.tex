@@ -16,7 +16,7 @@ MIDI-Instruct fills the gap: \emph{MIDI in, instruction in, MIDI out}, with dual
 \item \textbf{MIDI-Instruct}, a JSONL benchmark format pairing MIDI, instructions, edit masks, and predicate specifications (Section~3).
 \item A \textbf{dual-metric grader} reporting \edit{}, \preserve{}, joint pass rate, over-edit rate, and optional gold note-F1 (Section~4).
 \item \textbf{MIDI-Reason}, a structured plan track scored independently from the output file (Section~3.3).
-\item An open \textbf{generation and evaluation harness} producing 300 unique-gold pilot items from programmatic seeds, with reference and Llama-3.2-1B baselines (Sections~5--7).
+\item An open \textbf{generation and evaluation harness} with a synthetic pilot (v0.1) and a real-seed release (v0.2) from filtered MidiCaps/Lakh MIDI, plus reference and Llama-3.2-1B baselines (Sections~5--7).
 \end{enumerate}
 
-Our first model evaluation reaches 0.44 joint pass rate while exact plan match is only 0.20. The large gap across operator families---perfect performance on muting and tempo scaling but no joint passes on velocity or program changes---demonstrates why aggregate output similarity alone is insufficient. Later work---text-to-MIDI generation, tool-augmented agents, and self-refining harnesses---can reuse the same item schema; only the runner changes.
+On v0.2 real MIDI, a Llama-3.2-1B plan-then-execute runner reaches 0.59 joint pass rate while exact plan match is 0.62---a much smaller gap than on the synthetic pilot (0.44 joint, 0.20 plan). Performance still varies sharply by operator: tempo scaling and track muting succeed reliably, but transposition and program changes dominate failures. These operator-level differences would be obscured by validity, preservation, or plan accuracy alone. Later work---text-to-MIDI generation, tool-augmented agents, and self-refining harnesses---can reuse the same item schema; only the runner changes.
